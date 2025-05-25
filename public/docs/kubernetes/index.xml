@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Kubernetes on bei的个人博客</title>
+    <link>http://localhost:1313/docs/kubernetes/</link>
+    <description>Recent content in Kubernetes on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/kubernetes/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>resources</title>
+      <link>http://localhost:1313/docs/kubernetes/reources/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/kubernetes/reources/</guid>
+      <description>&lt;h2 id=&#34;groupversionresource-核心数据结构&#34;&gt;&#xA;  Group、Version、Resource 核心数据结构&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#groupversionresource-%e6%a0%b8%e5%bf%83%e6%95%b0%e6%8d%ae%e7%bb%93%e6%9e%84&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h2&gt;&#xA;&lt;p&gt;整个Kubernetes 体系架构中，&lt;strong&gt;资源&lt;/strong&gt;是Kubernetes最重要的概念，可以说Kubernets的生态系统都围绕着资源运作。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

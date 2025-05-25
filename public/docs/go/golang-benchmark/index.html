@@ -1,0 +1,2340 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  Go 基准测试（Benchmark）原理与实践
+  #
+
+
+📈 go test -bench 能让你在纳秒级别洞察代码性能。本指南汇总了从运行原理到实战技巧的完整知识点。
+
+  1 — 核心概念速览
+  #
+
+
+  
+      
+          关键对象
+          作用
+      
+  
+  
+      
+          go test -bench
+          启动基准测试运行器（benchmark harness）。
+      
+      
+          func BenchmarkXxx(b *testing.B)
+          声明一个基准测试函数，名称需以 Benchmark 前缀开头。
+      
+      
+          b.N
+          运行器自动决定的循环次数；被测代码需放入 for i := 0; i &lt; b.N; i&#43;&#43; { … }。
+      
+      
+          计时/统计
+          默认统计 wall‑clock 时间（ns/op）；使用 -benchmem 可额外输出 B/op 与 allocs/op。
+      
+      
+          常用辅助 API
+          b.ResetTimer()、b.StopTimer()/b.StartTimer()、b.ReportAllocs()、b.SetBytes(n)、b.RunParallel()
+      
+  
+
+
+
+  2 — Benchmark 运行原理
+  #
+
+
+
+编译阶段
+go test 会为测试与基准生成临时 main 包并编译。">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/go/golang-benchmark/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="bei的个人博客">
+  <meta property="og:description" content="Go 基准测试（Benchmark）原理与实践 # 📈 go test -bench 能让你在纳秒级别洞察代码性能。本指南汇总了从运行原理到实战技巧的完整知识点。
+1 — 核心概念速览 # 关键对象 作用 go test -bench 启动基准测试运行器（benchmark harness）。 func BenchmarkXxx(b *testing.B) 声明一个基准测试函数，名称需以 Benchmark 前缀开头。 b.N 运行器自动决定的循环次数；被测代码需放入 for i := 0; i &lt; b.N; i&#43;&#43; { … }。 计时/统计 默认统计 wall‑clock 时间（ns/op）；使用 -benchmem 可额外输出 B/op 与 allocs/op。 常用辅助 API b.ResetTimer()、b.StopTimer()/b.StartTimer()、b.ReportAllocs()、b.SetBytes(n)、b.RunParallel() 2 — Benchmark 运行原理 # 编译阶段
+go test 会为测试与基准生成临时 main 包并编译。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>Golang Benchmark | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/go/golang-benchmark/">
+<link rel="stylesheet" href="/book.min.1934e4b2bf0cffaabc804455f03ab43222c3c70d50a4aeb328e45872a19e1461.css" integrity="sha256-GTTksr8M/6q8gERV8Dq0MiLDxw1QpK6zKORYcqGeFGE=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.75c8b7c4e2af9c5ec99a3822f73e922389db0707c5ec3269cb95566164541677.js" integrity="sha256-dci3xOKvnF7Jmjgi9z6SI4nbBwfF7DJpy5VWYWRUFnc=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2608b3cf5c3ac624d703023278c7b939" class="toggle" checked />
+    <label for="section-2608b3cf5c3ac624d703023278c7b939" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/first/" class="">First</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a37c92d4b554b1a6703d61e67f098b80" class="toggle"  />
+    <label for="section-a37c92d4b554b1a6703d61e67f098b80" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/first/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/golang-benchmark/" class="active">Golang Benchmark</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3cc5f7c22cb2188bf57ade4a02a3c6f7" class="toggle"  />
+    <label for="section-3cc5f7c22cb2188bf57ade4a02a3c6f7" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">云原生</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-562b349c46b6ac9f009b44850053e314" class="toggle"  />
+    <label for="section-562b349c46b6ac9f009b44850053e314" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-96c32f321cb7bcafb125449673191093" class="toggle"  />
+    <label for="section-96c32f321cb7bcafb125449673191093" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-73b277f6e5c00fcd0ab134468fee6643" class="toggle"  />
+    <label for="section-73b277f6e5c00fcd0ab134468fee6643" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81535b443312041c596e94c0afbfacb6" class="toggle"  />
+    <label for="section-81535b443312041c596e94c0afbfacb6" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d5c98c51b778b3eb9e5d8d0789cded06" class="toggle"  />
+    <label for="section-d5c98c51b778b3eb9e5d8d0789cded06" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7b15338f5d885b3531b80733c42e1f79" class="toggle"  />
+    <label for="section-7b15338f5d885b3531b80733c42e1f79" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-ecfaf90862a54ef1d8129ad848256698" class="toggle"  />
+    <label for="section-ecfaf90862a54ef1d8129ad848256698" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50b91950d73562f6bde55db6debfa92a" class="toggle"  />
+    <label for="section-50b91950d73562f6bde55db6debfa92a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-57cc8b5c71538ddf23d7e7f9725d47c5" class="toggle"  />
+    <label for="section-57cc8b5c71538ddf23d7e7f9725d47c5" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-306df0ecef7b978a717e21bbff089b56" class="toggle"  />
+    <label for="section-306df0ecef7b978a717e21bbff089b56" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6fac1f39bf3254ecb202dfbd1d0b39ba" class="toggle"  />
+    <label for="section-6fac1f39bf3254ecb202dfbd1d0b39ba" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50ef1af42b6de94784337fd135d79f51" class="toggle"  />
+    <label for="section-50ef1af42b6de94784337fd135d79f51" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2f6a75c9345598103f396a53edaedc4c" class="toggle"  />
+    <label for="section-2f6a75c9345598103f396a53edaedc4c" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d02ee46da458fba35f4ac0eecfe85436" class="toggle"  />
+    <label for="section-d02ee46da458fba35f4ac0eecfe85436" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b99c153c40ac1b7a408fc569437046ad" class="toggle"  />
+    <label for="section-b99c153c40ac1b7a408fc569437046ad" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a2a19689abf1cf88eb1f31eedbe79cb0" class="toggle"  />
+    <label for="section-a2a19689abf1cf88eb1f31eedbe79cb0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-05efb5ede6a50cba4437b92d04313015" class="toggle"  />
+    <label for="section-05efb5ede6a50cba4437b92d04313015" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7efa55d94006d8dbc042163bf7e8c747" class="toggle"  />
+    <label for="section-7efa55d94006d8dbc042163bf7e8c747" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-624510c9dc6f97985e0669d795423a22" class="toggle"  />
+    <label for="section-624510c9dc6f97985e0669d795423a22" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2005515c6a20d94a700da65de67508ec" class="toggle"  />
+    <label for="section-2005515c6a20d94a700da65de67508ec" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-52f9e67cd3562a279687898d01754c8a" class="toggle"  />
+    <label for="section-52f9e67cd3562a279687898d01754c8a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-ffe1fe543f73e3a07036c60607e0fae7" class="toggle"  />
+    <label for="section-ffe1fe543f73e3a07036c60607e0fae7" class="flex justify-between">
+      <a role="button" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b6c4885dfd4bf672ed820a62fda8fe5d" class="toggle"  />
+    <label for="section-b6c4885dfd4bf672ed820a62fda8fe5d" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c362478bf9732071061f4f00b0654576" class="toggle"  />
+    <label for="section-c362478bf9732071061f4f00b0654576" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-78edbbcbf6db5b3d6e8b74b01e21f2f4" class="toggle"  />
+    <label for="section-78edbbcbf6db5b3d6e8b74b01e21f2f4" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-03127043bc941456e49dde8089e3df32" class="toggle"  />
+    <label for="section-03127043bc941456e49dde8089e3df32" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-94c2bb430f17db5b154286dae0ec6595" class="toggle"  />
+    <label for="section-94c2bb430f17db5b154286dae0ec6595" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6931200ddc3925db27ec92ecbfc69029" class="toggle"  />
+    <label for="section-6931200ddc3925db27ec92ecbfc69029" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de70a79980912c8bf8a5a37fb5dd1137" class="toggle"  />
+    <label for="section-de70a79980912c8bf8a5a37fb5dd1137" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-64a45067f44a424e62258ba5b420a0c5" class="toggle"  />
+    <label for="section-64a45067f44a424e62258ba5b420a0c5" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e58711db1bfea6408503bf3359cb29da" class="toggle"  />
+    <label for="section-e58711db1bfea6408503bf3359cb29da" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-490948b650ab2216d690ed785d8612b2" class="toggle"  />
+    <label for="section-490948b650ab2216d690ed785d8612b2" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-54ff31d2969c8d34774a8925cb40bc87" class="toggle"  />
+    <label for="section-54ff31d2969c8d34774a8925cb40bc87" class="flex justify-between">
+      <a role="button" class="">opentelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-294283bcf5e105d058b4d7de1b0004b3" class="toggle"  />
+    <label for="section-294283bcf5e105d058b4d7de1b0004b3" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1dde291ebce1b8ea878e79b0e1d0b3d3" class="toggle"  />
+    <label for="section-1dde291ebce1b8ea878e79b0e1d0b3d3" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-621e054189f1edec0877fae2afb5b883" class="toggle"  />
+    <label for="section-621e054189f1edec0877fae2afb5b883" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-0c86786ce2b3156c9d8b7cab2d35c503" class="toggle"  />
+    <label for="section-0c86786ce2b3156c9d8b7cab2d35c503" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3061bd1de9fcb3300528236783e9c151" class="toggle"  />
+    <label for="section-3061bd1de9fcb3300528236783e9c151" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e6479676740a480e90aee7ead7de7877" class="toggle"  />
+    <label for="section-e6479676740a480e90aee7ead7de7877" class="flex justify-between">
+      <a role="button" class="">platform</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b76e269c41b1cb614c05366ddc37058b" class="toggle"  />
+    <label for="section-b76e269c41b1cb614c05366ddc37058b" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-86776456bcb41986d56da012b3b9f9fc" class="toggle"  />
+    <label for="section-86776456bcb41986d56da012b3b9f9fc" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42b0a7d9feb3ad4b2546a01980a16a27" class="toggle"  />
+    <label for="section-42b0a7d9feb3ad4b2546a01980a16a27" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-60fa73a99ad1421d8374709175cc7ac0" class="toggle"  />
+    <label for="section-60fa73a99ad1421d8374709175cc7ac0" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-019d5d21d0d7c8849cc5ce61026157f9" class="toggle"  />
+    <label for="section-019d5d21d0d7c8849cc5ce61026157f9" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31a750133f762d02795905d83cd1561e" class="toggle"  />
+    <label for="section-31a750133f762d02795905d83cd1561e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b8b01f447ca150e2604fce82f82b1952" class="toggle"  />
+    <label for="section-b8b01f447ca150e2604fce82f82b1952" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-03f8712f0343af0b58a1d7d78a7bd071" class="toggle"  />
+    <label for="section-03f8712f0343af0b58a1d7d78a7bd071" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b269aae38ee81393b5349b95760ab251" class="toggle"  />
+    <label for="section-b269aae38ee81393b5349b95760ab251" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Golang Benchmark</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1--核心概念速览">1 — 核心概念速览</a></li>
+    <li><a href="#2--benchmark-运行原理">2 — Benchmark 运行原理</a></li>
+    <li><a href="#3--如何书写--运行基准">3 — 如何书写 &amp; 运行基准</a>
+      <ul>
+        <li><a href="#31-运行命令">3.1 运行命令</a></li>
+      </ul>
+    </li>
+    <li><a href="#4--常用技巧与坑">4 — 常用技巧与坑</a></li>
+    <li><a href="#5--进阶能力">5 — 进阶能力</a>
+      <ul>
+        <li><a href="#51-子基准">5.1 子基准</a></li>
+        <li><a href="#52-并行吞吐测试">5.2 并行吞吐测试</a></li>
+        <li><a href="#53-结果可视化">5.3 结果可视化</a></li>
+      </ul>
+    </li>
+    <li><a href="#6--小结">6 — 小结</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="go-基准测试benchmark原理与实践">
+  Go 基准测试（Benchmark）原理与实践
+  <a class="anchor" href="#go-%e5%9f%ba%e5%87%86%e6%b5%8b%e8%af%95benchmark%e5%8e%9f%e7%90%86%e4%b8%8e%e5%ae%9e%e8%b7%b5">#</a>
+</h1>
+<blockquote>
+<p>📈 <strong>go test -bench</strong> 能让你在纳秒级别洞察代码性能。本指南汇总了从运行原理到实战技巧的完整知识点。</p></blockquote>
+<h2 id="1--核心概念速览">
+  1 — 核心概念速览
+  <a class="anchor" href="#1--%e6%a0%b8%e5%bf%83%e6%a6%82%e5%bf%b5%e9%80%9f%e8%a7%88">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>关键对象</th>
+          <th>作用</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>go test -bench</code></td>
+          <td>启动基准测试运行器（benchmark harness）。</td>
+      </tr>
+      <tr>
+          <td><code>func BenchmarkXxx(b *testing.B)</code></td>
+          <td>声明一个基准测试函数，名称需以 <code>Benchmark</code> 前缀开头。</td>
+      </tr>
+      <tr>
+          <td><code>b.N</code></td>
+          <td>运行器自动决定的循环次数；被测代码需放入 <code>for i := 0; i &lt; b.N; i++ { … }</code>。</td>
+      </tr>
+      <tr>
+          <td>计时/统计</td>
+          <td>默认统计 <strong>wall‑clock</strong> 时间（<code>ns/op</code>）；使用 <code>-benchmem</code> 可额外输出 <code>B/op</code> 与 <code>allocs/op</code>。</td>
+      </tr>
+      <tr>
+          <td>常用辅助 API</td>
+          <td><code>b.ResetTimer()</code>、<code>b.StopTimer()/b.StartTimer()</code>、<code>b.ReportAllocs()</code>、<code>b.SetBytes(n)</code>、<code>b.RunParallel()</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="2--benchmark-运行原理">
+  2 — Benchmark 运行原理
+  <a class="anchor" href="#2--benchmark-%e8%bf%90%e8%a1%8c%e5%8e%9f%e7%90%86">#</a>
+</h2>
+<ol>
+<li>
+<p><strong>编译阶段</strong><br>
+<code>go test</code> 会为测试与基准生成临时 <code>main</code> 包并编译。</p>
+</li>
+<li>
+<p><strong>探测合适的迭代次数 (<code>b.N</code>)</strong></p>
+<ul>
+<li>初始化 <code>N = 1</code>；如果一次耗时 &lt; 0.5 s，就按指数级放大（×20、×100 …）。</li>
+<li>目标：单次基准 <strong>≥ 1 s</strong>（可通过 <code>-benchtime</code> 调整），兼顾统计显著性与总时长。</li>
+</ul>
+</li>
+<li>
+<p><strong>精准计时</strong></p>
+<ul>
+<li>默认计时整个基准函数；调用 <code>StopTimer</code> 后暂停，<code>StartTimer</code> 恢复。</li>
+<li>任何 GC、系统调用也被计入；避免在计时区内执行 I/O、网络等操作。</li>
+</ul>
+</li>
+<li>
+<p><strong>结果输出</strong><br>
+示例：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>BenchmarkNaive-8      1234567      100.0 ns/op
+</span></span></code></pre></div><p><code>-benchmem</code> 追加每次迭代的分配字节数与次数。若调用 <code>SetBytes(n)</code>，还会显示 <strong>MB/s</strong>。</p>
+</li>
+<li>
+<p><strong>并行模式</strong><br>
+<code>b.RunParallel(func(pb *testing.PB){ … })</code> 会根据 <code>GOMAXPROCS</code> 启动多 goroutine，并通过 <code>pb.Next()</code> 控制循环。</p>
+</li>
+</ol>
+<hr>
+<h2 id="3--如何书写--运行基准">
+  3 — 如何书写 &amp; 运行基准
+  <a class="anchor" href="#3--%e5%a6%82%e4%bd%95%e4%b9%a6%e5%86%99--%e8%bf%90%e8%a1%8c%e5%9f%ba%e5%87%86">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#75715e">// concat_test.go</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">package</span> <span style="color:#a6e22e">concat</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> (
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;strings&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#e6db74">&#34;testing&#34;</span>
+</span></span><span style="display:flex;"><span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">naive</span>(<span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span> <span style="color:#66d9ef">string</span>) <span style="color:#66d9ef">string</span> { <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">s1</span> <span style="color:#f92672">+</span> <span style="color:#a6e22e">s2</span> }
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">buffered</span>(<span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span> <span style="color:#66d9ef">string</span>) <span style="color:#66d9ef">string</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">var</span> <span style="color:#a6e22e">buf</span> <span style="color:#a6e22e">strings</span>.<span style="color:#a6e22e">Builder</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">buf</span>.<span style="color:#a6e22e">WriteString</span>(<span style="color:#a6e22e">s1</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">buf</span>.<span style="color:#a6e22e">WriteString</span>(<span style="color:#a6e22e">s2</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> <span style="color:#a6e22e">buf</span>.<span style="color:#a6e22e">String</span>()
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">BenchmarkNaive</span>(<span style="color:#a6e22e">b</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">B</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;foo&#34;</span>, <span style="color:#e6db74">&#34;bar&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">N</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">_</span> = <span style="color:#a6e22e">naive</span>(<span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span>)
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">BenchmarkBuffered</span>(<span style="color:#a6e22e">b</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">B</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span> <span style="color:#f92672">:=</span> <span style="color:#e6db74">&#34;foo&#34;</span>, <span style="color:#e6db74">&#34;bar&#34;</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">ReportAllocs</span>()
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">N</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">_</span> = <span style="color:#a6e22e">buffered</span>(<span style="color:#a6e22e">s1</span>, <span style="color:#a6e22e">s2</span>)
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="31-运行命令">
+  3.1 运行命令
+  <a class="anchor" href="#31-%e8%bf%90%e8%a1%8c%e5%91%bd%e4%bb%a4">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 仅跑基准（跳过单元测试）</span>
+</span></span><span style="display:flex;"><span>go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. ./...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 查看内存分配</span>
+</span></span><span style="display:flex;"><span>go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -benchmem ./...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 自定义持续时间（至少 3 s）</span>
+</span></span><span style="display:flex;"><span>go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -benchtime<span style="color:#f92672">=</span>3s ./...
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 生成 CPU / 内存剖面</span>
+</span></span><span style="display:flex;"><span>go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -cpuprofile cpu.out -memprofile mem.out
+</span></span><span style="display:flex;"><span>go tool pprof cpu.out
+</span></span></code></pre></div><hr>
+<h2 id="4--常用技巧与坑">
+  4 — 常用技巧与坑
+  <a class="anchor" href="#4--%e5%b8%b8%e7%94%a8%e6%8a%80%e5%b7%a7%e4%b8%8e%e5%9d%91">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>做法</th>
+          <th>理由</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>将准备工作放在循环外或使用 <code>StopTimer</code>/<code>StartTimer</code></td>
+          <td>避免把非核心逻辑计入基准时间</td>
+      </tr>
+      <tr>
+          <td>使用结果变量（如 <code>var sink any</code>）</td>
+          <td>防止编译器死代码消除 (DCE)</td>
+      </tr>
+      <tr>
+          <td>固定输入规模</td>
+          <td>提高可重复性；多规模可用 <code>b.Run</code></td>
+      </tr>
+      <tr>
+          <td>注意共享状态 &amp; GC</td>
+          <td>共享 map、随机数种子等会放大噪声</td>
+      </tr>
+      <tr>
+          <td>在实体机上运行</td>
+          <td>VM、笔记本省电模式可能抖动</td>
+      </tr>
+      <tr>
+          <td>结合 <code>go test -count=N</code></td>
+          <td>多次运行取平均/中位提高置信度</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="5--进阶能力">
+  5 — 进阶能力
+  <a class="anchor" href="#5--%e8%bf%9b%e9%98%b6%e8%83%bd%e5%8a%9b">#</a>
+</h2>
+<h3 id="51-子基准">
+  5.1 子基准
+  <a class="anchor" href="#51-%e5%ad%90%e5%9f%ba%e5%87%86">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">BenchmarkSizes</span>(<span style="color:#a6e22e">b</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">B</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">_</span>, <span style="color:#a6e22e">size</span> <span style="color:#f92672">:=</span> <span style="color:#66d9ef">range</span> []<span style="color:#66d9ef">int</span>{<span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">10</span>, <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">20</span>, <span style="color:#ae81ff">1</span> <span style="color:#f92672">&lt;&lt;</span> <span style="color:#ae81ff">24</span>} {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">Run</span>(<span style="color:#a6e22e">fmt</span>.<span style="color:#a6e22e">Sprintf</span>(<span style="color:#e6db74">&#34;%dB&#34;</span>, <span style="color:#a6e22e">size</span>), <span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">b</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">B</span>) {
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">data</span> <span style="color:#f92672">:=</span> make([]<span style="color:#66d9ef">byte</span>, <span style="color:#a6e22e">size</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">i</span> <span style="color:#f92672">:=</span> <span style="color:#ae81ff">0</span>; <span style="color:#a6e22e">i</span> &lt; <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">N</span>; <span style="color:#a6e22e">i</span><span style="color:#f92672">++</span> {
+</span></span><span style="display:flex;"><span>                <span style="color:#a6e22e">_</span> = <span style="color:#a6e22e">hash</span>(<span style="color:#a6e22e">data</span>)
+</span></span><span style="display:flex;"><span>            }
+</span></span><span style="display:flex;"><span>        })
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="52-并行吞吐测试">
+  5.2 并行吞吐测试
+  <a class="anchor" href="#52-%e5%b9%b6%e8%a1%8c%e5%90%9e%e5%90%90%e6%b5%8b%e8%af%95">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">BenchmarkPool</span>(<span style="color:#a6e22e">b</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">B</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">pool</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">sync</span>.<span style="color:#a6e22e">Pool</span>{<span style="color:#a6e22e">New</span>: <span style="color:#66d9ef">func</span>() <span style="color:#66d9ef">any</span> { <span style="color:#66d9ef">return</span> make([]<span style="color:#66d9ef">byte</span>, <span style="color:#ae81ff">1024</span>) }}
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">b</span>.<span style="color:#a6e22e">RunParallel</span>(<span style="color:#66d9ef">func</span>(<span style="color:#a6e22e">pb</span> <span style="color:#f92672">*</span><span style="color:#a6e22e">testing</span>.<span style="color:#a6e22e">PB</span>) {
+</span></span><span style="display:flex;"><span>        <span style="color:#66d9ef">for</span> <span style="color:#a6e22e">pb</span>.<span style="color:#a6e22e">Next</span>() {
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">buf</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">pool</span>.<span style="color:#a6e22e">Get</span>().([]<span style="color:#66d9ef">byte</span>)
+</span></span><span style="display:flex;"><span>            <span style="color:#75715e">// ... 使用 buf ...</span>
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">pool</span>.<span style="color:#a6e22e">Put</span>(<span style="color:#a6e22e">buf</span>)
+</span></span><span style="display:flex;"><span>        }
+</span></span><span style="display:flex;"><span>    })
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="53-结果可视化">
+  5.3 结果可视化
+  <a class="anchor" href="#53-%e7%bb%93%e6%9e%9c%e5%8f%af%e8%a7%86%e5%8c%96">#</a>
+</h3>
+<p>使用官方工具 <code>benchstat</code> / <code>benchcmp</code> 对比两次基准差异：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go test -bench<span style="color:#f92672">=</span>. &gt; old.txt
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 修改代码…</span>
+</span></span><span style="display:flex;"><span>go test -bench<span style="color:#f92672">=</span>. &gt; new.txt
+</span></span><span style="display:flex;"><span>benchstat old.txt new.txt
+</span></span></code></pre></div><hr>
+<h2 id="6--小结">
+  6 — 小结
+  <a class="anchor" href="#6--%e5%b0%8f%e7%bb%93">#</a>
+</h2>
+<ul>
+<li>基准测试集成于 <strong><code>testing</code> 包</strong>，无需额外依赖。</li>
+<li>把 <strong>真正欲测的语句</strong> 放进 <code>for i &lt; b.N</code>；其余逻辑用 <code>StopTimer</code> 隔离。</li>
+<li><code>-benchmem</code>、<code>pprof</code> 与 <code>benchstat</code> 可帮助你定位瓶颈与分配热点。</li>
+<li><strong>基准 ≠ 压测</strong>：它关注微观性能；系统级负载需另行压测。</li>
+</ul>
+<hr>
+<p>✨ <strong>祝你写出既快又省的 Go 代码！</strong></p>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1--核心概念速览">1 — 核心概念速览</a></li>
+    <li><a href="#2--benchmark-运行原理">2 — Benchmark 运行原理</a></li>
+    <li><a href="#3--如何书写--运行基准">3 — 如何书写 &amp; 运行基准</a>
+      <ul>
+        <li><a href="#31-运行命令">3.1 运行命令</a></li>
+      </ul>
+    </li>
+    <li><a href="#4--常用技巧与坑">4 — 常用技巧与坑</a></li>
+    <li><a href="#5--进阶能力">5 — 进阶能力</a>
+      <ul>
+        <li><a href="#51-子基准">5.1 子基准</a></li>
+        <li><a href="#52-并行吞吐测试">5.2 并行吞吐测试</a></li>
+        <li><a href="#53-结果可视化">5.3 结果可视化</a></li>
+      </ul>
+    </li>
+    <li><a href="#6--小结">6 — 小结</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

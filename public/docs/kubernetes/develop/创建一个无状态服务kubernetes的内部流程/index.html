@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  创建一个deployment资源
+  #
+
+当创建一个deployment时，kubernetes 内部是如何处理的？
+
+创建 Deployment 资源
+
+用户通过 kubectl apply 或 API 直接创建一个 Deployment 资源。
+kube-apiserver 接收到请求后，将 Deployment 对象写入 etcd 数据库。
+
+
+controller-manager 处理 Deployment
+
+kube-controller-manager 监听 Deployment 资源（通过 watch 机制）。
+发现新建的 Deployment，DeploymentController 计算出需要创建的 ReplicaSet（如果是更新，还会进行滚动升级）。
+controller-manager 通过 kube-apiserver 创建 ReplicaSet 资源。
+
+
+controller-manager 处理 ReplicaSet
+
+kube-controller-manager 监听 ReplicaSet 资源（通过 watch 机制）。
+发现新建的 ReplicaSet，ReplicaSetController 计算出需要创建的 Pod。
+controller-manager 通过 kube-apiserver 创建 Pod 资源。
+
+
+kube-scheduler 进行调度
+
+kube-scheduler 监听 Pod 资源的变更（通过 watch 机制）。
+发现 Pod 处于 Pending 状态，调度器计算出合适的 Node（根据 CPU、内存、调度策略等）。
+kube-scheduler 通过 kube-apiserver 更新 Pod 的 spec.nodeName，分配到合适的节点。
+
+
+kubelet 负责拉起容器
+
+kubelet 监听 kube-apiserver，发现被分配到自己节点的 Pod。
+kubelet 通过 Container Runtime Interface (CRI) 执行：
+
+创建网络（调用 CNI 插件，分配 IP）。
+挂载存储（调用 CSI 插件，挂载 Volume）。
+启动容器（调用 CRI，使用 containerd 或 Docker 等创建容器）。
+
+
+kubelet 通过 kube-apiserver 更新 Pod 状态（Running）。
+
+
+
+
+  创建一个service资源
+  #
+
+
+kube-proxy 监听 kube-apiserver 上的 service 资源的创建：
+
+当 kube-proxy 监视到新的服务资源（Service）时，它会根据 Service 中的标签（labels）来筛选出符合条件的 Pod。这些 Pod 是与该 Service 相关联的目标（后端）。通过这些信息，kube-proxy 创建一个 Endpoints 资源对象，指向这些 Pod。
+
+
+kube-proxy 监听 endpoint 资源的变化：
+
+Endpoints 资源对象被创建或更新，kube-proxy 就会动态地根据新的 Endpoint 信息来修改其网络规则（如 iptables 或 ipvs）。
+kube-proxy 根据 Endpoint 中的 Pod 地址创建或更新相应的 iptables 或 ipvs 规则，这样流量就可以通过正确的后端 Pod 进行路由。
+
+
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/kubernetes/develop/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="创建一个无状态服务，kubernetes的内部流程">
+  <meta property="og:description" content="创建一个deployment资源 # 当创建一个deployment时，kubernetes 内部是如何处理的？
+创建 Deployment 资源 用户通过 kubectl apply 或 API 直接创建一个 Deployment 资源。 kube-apiserver 接收到请求后，将 Deployment 对象写入 etcd 数据库。 controller-manager 处理 Deployment kube-controller-manager 监听 Deployment 资源（通过 watch 机制）。 发现新建的 Deployment，DeploymentController 计算出需要创建的 ReplicaSet（如果是更新，还会进行滚动升级）。 controller-manager 通过 kube-apiserver 创建 ReplicaSet 资源。 controller-manager 处理 ReplicaSet kube-controller-manager 监听 ReplicaSet 资源（通过 watch 机制）。 发现新建的 ReplicaSet，ReplicaSetController 计算出需要创建的 Pod。 controller-manager 通过 kube-apiserver 创建 Pod 资源。 kube-scheduler 进行调度 kube-scheduler 监听 Pod 资源的变更（通过 watch 机制）。 发现 Pod 处于 Pending 状态，调度器计算出合适的 Node（根据 CPU、内存、调度策略等）。 kube-scheduler 通过 kube-apiserver 更新 Pod 的 spec.nodeName，分配到合适的节点。 kubelet 负责拉起容器 kubelet 监听 kube-apiserver，发现被分配到自己节点的 Pod。 kubelet 通过 Container Runtime Interface (CRI) 执行： 创建网络（调用 CNI 插件，分配 IP）。 挂载存储（调用 CSI 插件，挂载 Volume）。 启动容器（调用 CRI，使用 containerd 或 Docker 等创建容器）。 kubelet 通过 kube-apiserver 更新 Pod 状态（Running）。 创建一个service资源 # kube-proxy 监听 kube-apiserver 上的 service 资源的创建： 当 kube-proxy 监视到新的服务资源（Service）时，它会根据 Service 中的标签（labels）来筛选出符合条件的 Pod。这些 Pod 是与该 Service 相关联的目标（后端）。通过这些信息，kube-proxy 创建一个 Endpoints 资源对象，指向这些 Pod。 kube-proxy 监听 endpoint 资源的变化： Endpoints 资源对象被创建或更新，kube-proxy 就会动态地根据新的 Endpoint 信息来修改其网络规则（如 iptables 或 ipvs）。 kube-proxy 根据 Endpoint 中的 Pod 地址创建或更新相应的 iptables 或 ipvs 规则，这样流量就可以通过正确的后端 Pod 进行路由。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>创建一个无状态服务，kubernetes的内部流程 | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/kubernetes/develop/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/">
+<link rel="stylesheet" href="/book.min.ac28969af46d427bd4a14d9414f79951f07fd68d5ade63d08e54ddd4d79f4f96.css" integrity="sha256-rCiWmvRtQnvUoU2UFPeZUfB/1o1a3mPQjlTd1NefT5Y=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.12451cedf8ee1a1f9e330dd4716d4987631529fc14063a79ccbf6103a894269c.js" integrity="sha256-EkUc7fjuGh&#43;eMw3UcW1Jh2MVKfwUBjp5zL9hA6iUJpw=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2608b3cf5c3ac624d703023278c7b939" class="toggle"  />
+    <label for="section-2608b3cf5c3ac624d703023278c7b939" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/first/" class="">First</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4678f632a7e8f39e60ae21d64515a594" class="toggle"  />
+    <label for="section-4678f632a7e8f39e60ae21d64515a594" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-5dab1a48ae15d4aff3124e3ef974031a" class="toggle"  />
+    <label for="section-5dab1a48ae15d4aff3124e3ef974031a" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a1e41d45d7656443e0cbce6d2bca6414" class="toggle"  />
+    <label for="section-a1e41d45d7656443e0cbce6d2bca6414" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-33910d4cbd8a44a4076ec2d7c9cb2873" class="toggle"  />
+    <label for="section-33910d4cbd8a44a4076ec2d7c9cb2873" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a544e15b32eb60e3f7b72072615455bc" class="toggle"  />
+    <label for="section-a544e15b32eb60e3f7b72072615455bc" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-40bf1e875710a5f13b27cb3a310d6ac8" class="toggle"  />
+    <label for="section-40bf1e875710a5f13b27cb3a310d6ac8" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df3093f84102cc1b8a18ec7136f68e0f" class="toggle"  />
+    <label for="section-df3093f84102cc1b8a18ec7136f68e0f" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/thanos/" class="">Thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="toggle" checked />
+    <label for="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="flex justify-between">
+      <a href="/docs/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-01c557692289b976b7344a94066ca02d" class="toggle"  />
+    <label for="section-01c557692289b976b7344a94066ca02d" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-64e3c4b818cc56636fca6383a53dcfa0" class="toggle"  />
+    <label for="section-64e3c4b818cc56636fca6383a53dcfa0" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7004701dca31b29ee01e7cd8557820e0" class="toggle" checked />
+    <label for="section-7004701dca31b29ee01e7cd8557820e0" class="flex justify-between">
+      <a href="/docs/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6e3ea0c9242bdbcc414f7cda04cec58c" class="toggle"  />
+    <label for="section-6e3ea0c9242bdbcc414f7cda04cec58c" class="flex justify-between">
+      <a href="/docs/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/develop/client-go/informer/" class="">informer</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/develop/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="active">创建一个无状态服务，kubernetes的内部流程</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b76e269c41b1cb614c05366ddc37058b" class="toggle"  />
+    <label for="section-b76e269c41b1cb614c05366ddc37058b" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-86776456bcb41986d56da012b3b9f9fc" class="toggle"  />
+    <label for="section-86776456bcb41986d56da012b3b9f9fc" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42b0a7d9feb3ad4b2546a01980a16a27" class="toggle"  />
+    <label for="section-42b0a7d9feb3ad4b2546a01980a16a27" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-60fa73a99ad1421d8374709175cc7ac0" class="toggle"  />
+    <label for="section-60fa73a99ad1421d8374709175cc7ac0" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-019d5d21d0d7c8849cc5ce61026157f9" class="toggle"  />
+    <label for="section-019d5d21d0d7c8849cc5ce61026157f9" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31a750133f762d02795905d83cd1561e" class="toggle"  />
+    <label for="section-31a750133f762d02795905d83cd1561e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b8b01f447ca150e2604fce82f82b1952" class="toggle"  />
+    <label for="section-b8b01f447ca150e2604fce82f82b1952" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>创建一个无状态服务，kubernetes的内部流程</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#创建一个deployment资源">创建一个deployment资源</a></li>
+    <li><a href="#创建一个service资源">创建一个service资源</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h2 id="创建一个deployment资源">
+  创建一个deployment资源
+  <a class="anchor" href="#%e5%88%9b%e5%bb%ba%e4%b8%80%e4%b8%aadeployment%e8%b5%84%e6%ba%90">#</a>
+</h2>
+<p><strong>当创建一个deployment时，kubernetes 内部是如何处理的？</strong></p>
+<ol>
+<li>创建 Deployment 资源
+<ul>
+<li>用户通过 kubectl apply 或 API 直接创建一个 Deployment 资源。</li>
+<li>kube-apiserver 接收到请求后，将 Deployment 对象写入 etcd 数据库。</li>
+</ul>
+</li>
+<li>controller-manager 处理 Deployment
+<ul>
+<li>kube-controller-manager 监听 Deployment 资源（通过 watch 机制）。</li>
+<li>发现新建的 Deployment，DeploymentController 计算出需要创建的 ReplicaSet（如果是更新，还会进行滚动升级）。</li>
+<li>controller-manager 通过 kube-apiserver 创建 ReplicaSet 资源。</li>
+</ul>
+</li>
+<li>controller-manager 处理 ReplicaSet
+<ul>
+<li>kube-controller-manager 监听 ReplicaSet 资源（通过 watch 机制）。</li>
+<li>发现新建的 ReplicaSet，ReplicaSetController 计算出需要创建的 Pod。</li>
+<li>controller-manager 通过 kube-apiserver 创建 Pod 资源。</li>
+</ul>
+</li>
+<li>kube-scheduler 进行调度
+<ul>
+<li>kube-scheduler 监听 Pod 资源的变更（通过 watch 机制）。</li>
+<li>发现 Pod 处于 Pending 状态，调度器计算出合适的 Node（根据 CPU、内存、调度策略等）。</li>
+<li>kube-scheduler 通过 kube-apiserver 更新 Pod 的 spec.nodeName，分配到合适的节点。</li>
+</ul>
+</li>
+<li>kubelet 负责拉起容器
+<ul>
+<li>kubelet 监听 kube-apiserver，发现被分配到自己节点的 Pod。</li>
+<li>kubelet 通过 Container Runtime Interface (CRI) 执行：
+<ul>
+<li>创建网络（调用 CNI 插件，分配 IP）。</li>
+<li>挂载存储（调用 CSI 插件，挂载 Volume）。</li>
+<li>启动容器（调用 CRI，使用 containerd 或 Docker 等创建容器）。</li>
+</ul>
+</li>
+<li>kubelet 通过 kube-apiserver 更新 Pod 状态（Running）。</li>
+</ul>
+</li>
+</ol>
+<h2 id="创建一个service资源">
+  创建一个service资源
+  <a class="anchor" href="#%e5%88%9b%e5%bb%ba%e4%b8%80%e4%b8%aaservice%e8%b5%84%e6%ba%90">#</a>
+</h2>
+<ol>
+<li>kube-proxy 监听 kube-apiserver 上的 service 资源的创建：
+<ul>
+<li>当 kube-proxy 监视到新的服务资源（Service）时，它会根据 Service 中的标签（labels）来筛选出符合条件的 Pod。这些 Pod 是与该 Service 相关联的目标（后端）。通过这些信息，kube-proxy 创建一个 Endpoints 资源对象，指向这些 Pod。</li>
+</ul>
+</li>
+<li>kube-proxy 监听 endpoint 资源的变化：
+<ul>
+<li>Endpoints 资源对象被创建或更新，kube-proxy 就会动态地根据新的 Endpoint 信息来修改其网络规则（如 iptables 或 ipvs）。</li>
+<li>kube-proxy 根据 Endpoint 中的 Pod 地址创建或更新相应的 iptables 或 ipvs 规则，这样流量就可以通过正确的后端 Pod 进行路由。</li>
+</ul>
+</li>
+</ol>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#创建一个deployment资源">创建一个deployment资源</a></li>
+    <li><a href="#创建一个service资源">创建一个service资源</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>informer on bei的个人博客</title>
+    <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/</link>
+    <description>Recent content in informer on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>DeltaFIFO</title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/</guid>
+      <description>&lt;h1 id=&#34;deltafifo&#34;&gt;&#xA;  DeltaFIFO&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#deltafifo&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;</description>
+    </item>
+    <item>
+      <title>Indexer</title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/</guid>
+      <description>&lt;h1 id=&#34;indexer&#34;&gt;&#xA;  Indexer&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#indexer&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;</description>
+    </item>
+    <item>
+      <title>Resync</title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/</guid>
+      <description>&lt;h1 id=&#34;resync&#34;&gt;&#xA;  ReSync&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#resync&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;</description>
+    </item>
+  </channel>
+</rss>

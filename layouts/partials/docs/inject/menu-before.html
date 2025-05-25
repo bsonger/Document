@@ -1,0 +1,21 @@
+{{- /* 递归渲染菜单 */ -}}
+{{- define "menu-tree" -}}
+<ul>
+    {{- range . }}
+    <li class="{{ if .Children }}folder{{ else }}file{{ end }}">
+        <a href="{{ .URL }}">{{ .Name }}</a>
+        {{- if .Children }}
+        {{- template "menu-tree" .Children }}
+        {{- end }}
+    </li>
+    {{- end }}
+</ul>
+{{- end }}
+
+{{- /* 获取 Hugo 生成的菜单数据 */ -}}
+{{- $menu := site.Menus.main }}
+
+{{- /* 渲染菜单 */ -}}
+<div class="custom-book-menu">
+    {{- template "menu-tree" $menu }}
+</div>

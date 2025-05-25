@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  Go pprof 性能分析实践手册
+  #
+
+
+适用版本：Go 1.20 – Go 1.23（2025 年最新版）
+阅读对象：希望系统掌握 pprof 并落地到生产的 Go 开发 / SRE
+
+
+  目录
+  #
+
+
+概览：pprof 能解决什么问题
+Profile 类型与采样原理
+离线采集：基准测试 &amp; CLI
+在线采集：net/http/pprof &amp; 远程抓取
+可视化：命令行、FlameGraph、Speedscope
+案例一：CPU Hotspot 定位与优化
+案例二：内存泄漏排查
+案例三：阻塞 / Mutex 竞争分析
+持续 Profiling：Parca / Pyroscope / Grafana Pyroscope Cloud
+PGO：Profile-Guided Optimization 流程
+自动化工作流与 CI 集成
+常见误区 &amp; 调参清单
+参考链接
+
+
+
+  1. 概览：pprof 能解决什么问题
+  #
+
+
+定位 CPU 热点：采样型 Profile，找到最耗时的函数或调用链
+排查内存泄漏：对比多份堆快照，确定分配点
+锁竞争 / 阻塞：查看被 sync.Mutex 或系统调用阻塞的时间
+Goroutine 爆炸：快照当前所有 goroutine 栈，分析创建源
+
+pprof 不会直接告诉你“怎么改”，但能精准指向瓶颈位置。随后通过代码 / 参数 / 架构层面优化并 benchstat 验证。">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="bei的个人博客">
+  <meta property="og:description" content="Go pprof 性能分析实践手册 # 适用版本：Go 1.20 – Go 1.23（2025 年最新版）
+阅读对象：希望系统掌握 pprof 并落地到生产的 Go 开发 / SRE
+目录 # 概览：pprof 能解决什么问题 Profile 类型与采样原理 离线采集：基准测试 &amp; CLI 在线采集：net/http/pprof &amp; 远程抓取 可视化：命令行、FlameGraph、Speedscope 案例一：CPU Hotspot 定位与优化 案例二：内存泄漏排查 案例三：阻塞 / Mutex 竞争分析 持续 Profiling：Parca / Pyroscope / Grafana Pyroscope Cloud PGO：Profile-Guided Optimization 流程 自动化工作流与 CI 集成 常见误区 &amp; 调参清单 参考链接 1. 概览：pprof 能解决什么问题 # 定位 CPU 热点：采样型 Profile，找到最耗时的函数或调用链 排查内存泄漏：对比多份堆快照，确定分配点 锁竞争 / 阻塞：查看被 sync.Mutex 或系统调用阻塞的时间 Goroutine 爆炸：快照当前所有 goroutine 栈，分析创建源 pprof 不会直接告诉你“怎么改”，但能精准指向瓶颈位置。随后通过代码 / 参数 / 架构层面优化并 benchstat 验证。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>Pprof Analysis | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/">
+<link rel="stylesheet" href="/book.min.1934e4b2bf0cffaabc804455f03ab43222c3c70d50a4aeb328e45872a19e1461.css" integrity="sha256-GTTksr8M/6q8gERV8Dq0MiLDxw1QpK6zKORYcqGeFGE=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.dfbb9d2e66b23b39bee40e4a0a0db0c5f14faea76c8a4eb335a1662b6e46c399.js" integrity="sha256-37udLmayOzm&#43;5A5KCg2wxfFPrqdsik6zNaFmK25Gw5k=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31b994de57a0e3b8ac3c416719c2604f" class="toggle" checked />
+    <label for="section-31b994de57a0e3b8ac3c416719c2604f" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f07eb1fd55c4e29187968fd45d8f9d80" class="toggle" checked />
+    <label for="section-f07eb1fd55c4e29187968fd45d8f9d80" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/" class="active">Pprof Analysis</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-045af9a3843544a75b50d7a9f4d18592" class="toggle"  />
+    <label for="section-045af9a3843544a75b50d7a9f4d18592" class="flex justify-between">
+      <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="">数据结构</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/" class="">Go Escape Analysis</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/" class="">Go Gc Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/" class="">Go Gmp Model</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e02213d69c40c10c74c67bdb1acd3a3a" class="toggle"  />
+    <label for="section-e02213d69c40c10c74c67bdb1acd3a3a" class="flex justify-between">
+      <a href="/docs/go/sync/" class="">sync</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_cond_guide/" class="">Sync Cond Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_once_guide/" class="">Sync Once Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_pool_guide/" class="">Sync Pool Guide</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-fb004d4a7419348fbead64778e20a8b1" class="toggle"  />
+    <label for="section-fb004d4a7419348fbead64778e20a8b1" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">Cloud Native</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-9531af3c3e194cb5919a7839304c053b" class="toggle"  />
+    <label for="section-9531af3c3e194cb5919a7839304c053b" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="toggle"  />
+    <label for="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8b0a6328ccc683a23ccc56acefd0adb0" class="toggle"  />
+    <label for="section-8b0a6328ccc683a23ccc56acefd0adb0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-70f593c06217ec511a0c1b2a431747a9" class="toggle"  />
+    <label for="section-70f593c06217ec511a0c1b2a431747a9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de938862237794fd2ca1b4c4e7daaeda" class="toggle"  />
+    <label for="section-de938862237794fd2ca1b4c4e7daaeda" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d42e0dc199f16e421ba954314a519d35" class="toggle"  />
+    <label for="section-d42e0dc199f16e421ba954314a519d35" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="toggle"  />
+    <label for="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1921653c51a6c41972bd82dd8d89ccd0" class="toggle"  />
+    <label for="section-1921653c51a6c41972bd82dd8d89ccd0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bf3bd385815d1ffa8144653e938844c6" class="toggle"  />
+    <label for="section-bf3bd385815d1ffa8144653e938844c6" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81864014818235de3c40561bed2b850e" class="toggle"  />
+    <label for="section-81864014818235de3c40561bed2b850e" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-103bf14b5d70b74d6ec31e2ea9657f26" class="toggle"  />
+    <label for="section-103bf14b5d70b74d6ec31e2ea9657f26" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f405afe12b5ab057a3d4a89e312ea9c8" class="toggle"  />
+    <label for="section-f405afe12b5ab057a3d4a89e312ea9c8" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27eece6995f35f1dd2fe6a470753ff8f" class="toggle"  />
+    <label for="section-27eece6995f35f1dd2fe6a470753ff8f" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-445308f2ecb6007569065adbc919a93c" class="toggle"  />
+    <label for="section-445308f2ecb6007569065adbc919a93c" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1988c9cce0fb4b6288d2523e22659366" class="toggle"  />
+    <label for="section-1988c9cce0fb4b6288d2523e22659366" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-96855e251a4dce44887698494e146633" class="toggle"  />
+    <label for="section-96855e251a4dce44887698494e146633" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-db48915e45a102166de57dcc69bf030a" class="toggle"  />
+    <label for="section-db48915e45a102166de57dcc69bf030a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-77a82058ac6d5402c5151c90216d4acd" class="toggle"  />
+    <label for="section-77a82058ac6d5402c5151c90216d4acd" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-cd44ada480cf09a54f178d9e1af8f0cb" class="toggle"  />
+    <label for="section-cd44ada480cf09a54f178d9e1af8f0cb" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/configuration/" class="">configuration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e3d8865be62419a4d536b53831605141" class="toggle"  />
+    <label for="section-e3d8865be62419a4d536b53831605141" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4db372ef1a247eb1212931452c76493d" class="toggle"  />
+    <label for="section-4db372ef1a247eb1212931452c76493d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="toggle"  />
+    <label for="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="flex justify-between">
+      <a role="button" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df8984aeb9957b4141770348328d854b" class="toggle"  />
+    <label for="section-df8984aeb9957b4141770348328d854b" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f30d0799c368f54af0bfced717b99046" class="toggle"  />
+    <label for="section-f30d0799c368f54af0bfced717b99046" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-727dc8241028b35df1de58529ba4a6f9" class="toggle"  />
+    <label for="section-727dc8241028b35df1de58529ba4a6f9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-975a7b9d961593382dc4f9868f329cab" class="toggle"  />
+    <label for="section-975a7b9d961593382dc4f9868f329cab" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c78358fadc8208403b75f5b50c1647fc" class="toggle"  />
+    <label for="section-c78358fadc8208403b75f5b50c1647fc" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c1d877d9bb7770c7105fb8021e278169" class="toggle"  />
+    <label for="section-c1d877d9bb7770c7105fb8021e278169" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="toggle"  />
+    <label for="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2e9e25540ce6b748c17344ee73c3b8e4" class="toggle"  />
+    <label for="section-2e9e25540ce6b748c17344ee73c3b8e4" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42a22a7d08310d1856aeba25a854d5d8" class="toggle"  />
+    <label for="section-42a22a7d08310d1856aeba25a854d5d8" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-84a39309bee2c95a1f61a4dd5644ab39" class="toggle"  />
+    <label for="section-84a39309bee2c95a1f61a4dd5644ab39" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27cee8dec73b1dd885764b764ec67b27" class="toggle"  />
+    <label for="section-27cee8dec73b1dd885764b764ec67b27" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3564f9311b92f61396270b54225a42cc" class="toggle"  />
+    <label for="section-3564f9311b92f61396270b54225a42cc" class="flex justify-between">
+      <a role="button" class="">Tekton</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_architecture/" class="">Tekton Architecture</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_ci_template/" class="">Tekton Ci Template</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_installation/" class="">Tekton Installation</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81ba98b293821218510c44fa6934eeb3" class="toggle"  />
+    <label for="section-81ba98b293821218510c44fa6934eeb3" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6706c2823eb504c0237afd0370fa6659" class="toggle"  />
+    <label for="section-6706c2823eb504c0237afd0370fa6659" class="flex justify-between">
+      <a role="button" class="">OpenTelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3fb52280cfcba23637db079796427c65" class="toggle"  />
+    <label for="section-3fb52280cfcba23637db079796427c65" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="toggle"  />
+    <label for="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-489fc317ec6b7f39f6c0410830596165" class="toggle"  />
+    <label for="section-489fc317ec6b7f39f6c0410830596165" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-662e416954ead599a6a0438f93c4856a" class="toggle"  />
+    <label for="section-662e416954ead599a6a0438f93c4856a" class="flex justify-between">
+      <a role="button" class="">platform</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="toggle"  />
+    <label for="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="toggle"  />
+    <label for="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-645bd24995f1411025c5950ae54361e7" class="toggle"  />
+    <label for="section-645bd24995f1411025c5950ae54361e7" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="toggle"  />
+    <label for="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e7370a17fc2d1f56c085c3ff44f0638d" class="toggle"  />
+    <label for="section-e7370a17fc2d1f56c085c3ff44f0638d" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-54a025bd9197d481dbd05a23c2b465b2" class="toggle"  />
+    <label for="section-54a025bd9197d481dbd05a23c2b465b2" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8ffa414c5a8c7277ed74af1a3baba36e" class="toggle"  />
+    <label for="section-8ffa414c5a8c7277ed74af1a3baba36e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="toggle"  />
+    <label for="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6326f064344c85b1d5e68f4f74e7f721" class="toggle"  />
+    <label for="section-6326f064344c85b1d5e68f4f74e7f721" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Pprof Analysis</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#目录">目录</a></li>
+    <li><a href="#1-概览pprof-能解决什么问题">1. 概览：<code>pprof</code> 能解决什么问题</a></li>
+    <li><a href="#2-profile-类型与采样原理">2. Profile 类型与采样原理</a></li>
+    <li><a href="#3-离线采集基准测试--cli">3. 离线采集：基准测试 &amp; CLI</a></li>
+    <li><a href="#4-在线采集nethttppprof">4. 在线采集：<code>net/http/pprof</code></a>
+      <ul>
+        <li><a href="#常用抓取命令">常用抓取命令</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-可视化">5. 可视化</a>
+      <ul>
+        <li><a href="#51-cli">5.1 CLI</a></li>
+        <li><a href="#52-内置-web">5.2 内置 Web</a></li>
+        <li><a href="#53-speedscope">5.3 Speedscope</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-案例一cpu-hotspot">6. 案例一：CPU Hotspot</a></li>
+    <li><a href="#7-案例二内存泄漏">7. 案例二：内存泄漏</a></li>
+    <li><a href="#8-案例三阻塞--mutex">8. 案例三：阻塞 / Mutex</a></li>
+    <li><a href="#9-持续-profiling">9. 持续 Profiling</a></li>
+    <li><a href="#10-pgoprofile-guided-optimization">10. PGO：Profile-Guided Optimization</a></li>
+    <li><a href="#11-自动化工作流">11. 自动化工作流</a></li>
+    <li><a href="#12-常见误区--调参清单">12. 常见误区 &amp; 调参清单</a></li>
+    <li><a href="#13-参考链接">13. 参考链接</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="go-pprof-性能分析实践手册">
+  Go <code>pprof</code> 性能分析实践手册
+  <a class="anchor" href="#go-pprof-%e6%80%a7%e8%83%bd%e5%88%86%e6%9e%90%e5%ae%9e%e8%b7%b5%e6%89%8b%e5%86%8c">#</a>
+</h1>
+<blockquote>
+<p><strong>适用版本</strong>：Go 1.20 – Go 1.23（2025 年最新版）<br>
+<strong>阅读对象</strong>：希望系统掌握 <code>pprof</code> 并落地到生产的 Go 开发 / SRE</p></blockquote>
+<hr>
+<h2 id="目录">
+  目录
+  <a class="anchor" href="#%e7%9b%ae%e5%bd%95">#</a>
+</h2>
+<ol>
+<li>概览：<code>pprof</code> 能解决什么问题</li>
+<li>Profile 类型与采样原理</li>
+<li>离线采集：基准测试 &amp; CLI</li>
+<li>在线采集：<code>net/http/pprof</code> &amp; 远程抓取</li>
+<li>可视化：命令行、FlameGraph、Speedscope</li>
+<li>案例一：CPU Hotspot 定位与优化</li>
+<li>案例二：内存泄漏排查</li>
+<li>案例三：阻塞 / Mutex 竞争分析</li>
+<li>持续 Profiling：Parca / Pyroscope / Grafana Pyroscope Cloud</li>
+<li>PGO：Profile-Guided Optimization 流程</li>
+<li>自动化工作流与 CI 集成</li>
+<li>常见误区 &amp; 调参清单</li>
+<li>参考链接</li>
+</ol>
+<hr>
+<h2 id="1-概览pprof-能解决什么问题">
+  1. 概览：<code>pprof</code> 能解决什么问题
+  <a class="anchor" href="#1-%e6%a6%82%e8%a7%88pprof-%e8%83%bd%e8%a7%a3%e5%86%b3%e4%bb%80%e4%b9%88%e9%97%ae%e9%a2%98">#</a>
+</h2>
+<ul>
+<li><strong>定位 CPU 热点</strong>：采样型 Profile，找到最耗时的函数或调用链</li>
+<li><strong>排查内存泄漏</strong>：对比多份堆快照，确定分配点</li>
+<li><strong>锁竞争 / 阻塞</strong>：查看被 <code>sync.Mutex</code> 或系统调用阻塞的时间</li>
+<li><strong>Goroutine 爆炸</strong>：快照当前所有 goroutine 栈，分析创建源</li>
+</ul>
+<p><code>pprof</code> 不会直接告诉你“怎么改”，但能精准指向<strong>瓶颈位置</strong>。随后通过代码 / 参数 / 架构层面优化并 <strong>benchstat</strong> 验证。</p>
+<hr>
+<h2 id="2-profile-类型与采样原理">
+  2. Profile 类型与采样原理
+  <a class="anchor" href="#2-profile-%e7%b1%bb%e5%9e%8b%e4%b8%8e%e9%87%87%e6%a0%b7%e5%8e%9f%e7%90%86">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Profile</th>
+          <th>默认采样</th>
+          <th>主要字段</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>CPU</strong></td>
+          <td>100 Hz 时钟中断</td>
+          <td><code>flat</code>, <code>cum</code></td>
+      </tr>
+      <tr>
+          <td>**Heap (allocs/inuse)`</td>
+          <td>每分配 512 KiB</td>
+          <td><code>alloc_objects</code> / <code>inuse_space</code></td>
+      </tr>
+      <tr>
+          <td><strong>Block</strong></td>
+          <td>100 Hz</td>
+          <td><code>contentions_ns</code></td>
+      </tr>
+      <tr>
+          <td><strong>Mutex</strong></td>
+          <td>50 Hz</td>
+          <td><code>contentions</code>, <code>delay</code></td>
+      </tr>
+      <tr>
+          <td><strong>Goroutine</strong></td>
+          <td>快照</td>
+          <td><code>stack</code></td>
+      </tr>
+  </tbody>
+</table>
+<ul>
+<li>Go 运行时在热点处插入采样回调，成本≈1–2 % CPU。</li>
+<li><code>Heap</code> 采样率可通过环境变量 <code>GODEBUG=memprofilerate=N</code> 调节。</li>
+</ul>
+<hr>
+<h2 id="3-离线采集基准测试--cli">
+  3. 离线采集：基准测试 &amp; CLI
+  <a class="anchor" href="#3-%e7%a6%bb%e7%ba%bf%e9%87%87%e9%9b%86%e5%9f%ba%e5%87%86%e6%b5%8b%e8%af%95--cli">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 编译基准并输出 cpu.prof</span>
+</span></span><span style="display:flex;"><span>go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -benchtime<span style="color:#f92672">=</span>10s -cpuprofile cpu.prof ./pkg
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 生成内存 profile</span>
+</span></span><span style="display:flex;"><span>GODEBUG<span style="color:#f92672">=</span>memprofilerate<span style="color:#f92672">=</span><span style="color:#ae81ff">131072</span> go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -memprofile mem.prof ./pkg
+</span></span></code></pre></div><blockquote>
+<p><em>Tips</em></p>
+<ul>
+<li><code>-run=^$</code> 跳过单元测试，仅跑基准</li>
+<li><code>-benchmem</code> 报告 alloc/op，配合 <code>mem.prof</code> 效果更佳</li>
+</ul></blockquote>
+<hr>
+<h2 id="4-在线采集nethttppprof">
+  4. 在线采集：<code>net/http/pprof</code>
+  <a class="anchor" href="#4-%e5%9c%a8%e7%ba%bf%e9%87%87%e9%9b%86nethttppprof">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#f92672">import</span> <span style="color:#a6e22e">_</span> <span style="color:#e6db74">&#34;net/http/pprof&#34;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">main</span>() {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">go</span> <span style="color:#a6e22e">http</span>.<span style="color:#a6e22e">ListenAndServe</span>(<span style="color:#e6db74">&#34;:6060&#34;</span>, <span style="color:#66d9ef">nil</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">...</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><h3 id="常用抓取命令">
+  常用抓取命令
+  <a class="anchor" href="#%e5%b8%b8%e7%94%a8%e6%8a%93%e5%8f%96%e5%91%bd%e4%bb%a4">#</a>
+</h3>
+<table>
+  <thead>
+      <tr>
+          <th>URL</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>/debug/pprof/profile?seconds=30</code></td>
+          <td>CPU 30 s</td>
+      </tr>
+      <tr>
+          <td><code>/debug/pprof/heap</code></td>
+          <td>堆快照</td>
+      </tr>
+      <tr>
+          <td><code>/debug/pprof/mutex?debug=1</code></td>
+          <td>Mutex</td>
+      </tr>
+      <tr>
+          <td><code>/debug/pprof/block?debug=1</code></td>
+          <td>Block</td>
+      </tr>
+  </tbody>
+</table>
+<p>确保只对内网或 mTLS 暴露； kubernetes 可用 <code>kubectl port-forward</code> 临时拉通。</p>
+<hr>
+<h2 id="5-可视化">
+  5. 可视化
+  <a class="anchor" href="#5-%e5%8f%af%e8%a7%86%e5%8c%96">#</a>
+</h2>
+<h3 id="51-cli">
+  5.1 CLI
+  <a class="anchor" href="#51-cli">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go tool pprof -top cpu.prof
+</span></span><span style="display:flex;"><span>go tool pprof -list <span style="color:#e6db74">&#39;MyHotFunc&#39;</span> cpu.prof
+</span></span></code></pre></div><h3 id="52-内置-web">
+  5.2 内置 Web
+  <a class="anchor" href="#52-%e5%86%85%e7%bd%ae-web">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go tool pprof -http<span style="color:#f92672">=</span>:8080 cpu.prof
+</span></span></code></pre></div><h3 id="53-speedscope">
+  5.3 Speedscope
+  <a class="anchor" href="#53-speedscope">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go tool pprof -proto cpu.prof &gt; cpu.pb.gz
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 将 protobuf 文件拖到 https://www.speedscope.app</span>
+</span></span></code></pre></div><p>Speedscope 支持时间轴视图，适合分析并行 / I/O 阻塞。</p>
+<hr>
+<h2 id="6-案例一cpu-hotspot">
+  6. 案例一：CPU Hotspot
+  <a class="anchor" href="#6-%e6%a1%88%e4%be%8b%e4%b8%80cpu-hotspot">#</a>
+</h2>
+<ol>
+<li><strong>症状</strong>：QPS 达到 5k 时 CPU 占用 900 %</li>
+<li><strong>采集</strong>：30 秒 CPU profile</li>
+<li><strong>分析</strong>：<code>top</code> 发现 <code>regexp.(*Regexp).FindAllIndex</code> flat=45 %</li>
+<li><strong>优化</strong>：
+<ul>
+<li>复用编译后的正则</li>
+<li>替换为 <code>strings.Contains</code> + 预解析</li>
+</ul>
+</li>
+<li><strong>回归</strong>：benchstat 显示 <strong>latency ↓30 % / CPU ↓25 %</strong></li>
+</ol>
+<hr>
+<h2 id="7-案例二内存泄漏">
+  7. 案例二：内存泄漏
+  <a class="anchor" href="#7-%e6%a1%88%e4%be%8b%e4%ba%8c%e5%86%85%e5%ad%98%e6%b3%84%e6%bc%8f">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 周期抓取堆</span>
+</span></span><span style="display:flex;"><span>go tool pprof http://app:6060/debug/pprof/heap -o heap1.prof
+</span></span><span style="display:flex;"><span>sleep <span style="color:#ae81ff">120</span>
+</span></span><span style="display:flex;"><span>go tool pprof http://app:6060/debug/pprof/heap -o heap2.prof
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># Diff</span>
+</span></span><span style="display:flex;"><span>go tool pprof -base heap1.prof heap2.prof
+</span></span></code></pre></div><p>若差异集中在 <code>bytes.makeSlice</code>，通常是切片无限扩容；检查 <code>cap</code> 预估或扩容策略。</p>
+<hr>
+<h2 id="8-案例三阻塞--mutex">
+  8. 案例三：阻塞 / Mutex
+  <a class="anchor" href="#8-%e6%a1%88%e4%be%8b%e4%b8%89%e9%98%bb%e5%a1%9e--mutex">#</a>
+</h2>
+<ul>
+<li><strong>Block profile</strong>：定位网络 / DB 延迟</li>
+<li><strong>Mutex profile</strong>：出现 <code>runtime.mapassign</code> 热点 → map 写争用；可换 <code>sync.Map</code> 或 sharding</li>
+</ul>
+<p>Go 1.21+ 支持 <code>runtime/pprof.Labels(&quot;tenant&quot;, id)</code>，在火焰图中按标签聚合，快速识别哪条租户耗时。</p>
+<hr>
+<h2 id="9-持续-profiling">
+  9. 持续 Profiling
+  <a class="anchor" href="#9-%e6%8c%81%e7%bb%ad-profiling">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>方案</th>
+          <th>特点</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>Parca / Parca Agent</strong></td>
+          <td>云原生，eBPF + DWARF，无需 sidecar</td>
+      </tr>
+      <tr>
+          <td><strong>Pyroscope</strong></td>
+          <td>UI 友好，可与 Grafana Merge</td>
+      </tr>
+      <tr>
+          <td><strong>Go 运行时 mprof</strong></td>
+          <td>1.20+ 内置连续 CPU/Heap 采样，低开销</td>
+      </tr>
+  </tbody>
+</table>
+<p>在 Kubernetes 集群推荐 DaemonSet 方式安装 Agent，统一上报到集中 UI。</p>
+<hr>
+<h2 id="10-pgoprofile-guided-optimization">
+  10. PGO：Profile-Guided Optimization
+  <a class="anchor" href="#10-pgoprofile-guided-optimization">#</a>
+</h2>
+<ol>
+<li>Go 1.20 起支持 <code>-pgo=</code></li>
+<li>流程：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>go test -c -pgo<span style="color:#f92672">=</span>./pgo.pprof
+</span></span><span style="display:flex;"><span>go build -pgo<span style="color:#f92672">=</span>./pgo.pprof -o app
+</span></span></code></pre></div></li>
+<li>PGO 主要优化 <strong>内联 / 分支预测</strong>；对微服务效果 3–10 %。</li>
+</ol>
+<hr>
+<h2 id="11-自动化工作流">
+  11. 自动化工作流
+  <a class="anchor" href="#11-%e8%87%aa%e5%8a%a8%e5%8c%96%e5%b7%a5%e4%bd%9c%e6%b5%81">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># Makefile 片段</span>
+</span></span><span style="display:flex;"><span>bench:
+</span></span><span style="display:flex;"><span>    go test -run<span style="color:#f92672">=</span>^$ -bench<span style="color:#f92672">=</span>. -benchmem -cpuprofile cpu.prof ./...
+</span></span><span style="display:flex;"><span>    benchstat old.txt new.txt
+</span></span><span style="display:flex;"><span>    go tool pprof -svg cpu.prof &gt; cpu.svg
+</span></span></code></pre></div><p>CI 中上传 <code>cpu.svg</code> 作为 artifact，配合 GitHub Actions 注释 PR。</p>
+<hr>
+<h2 id="12-常见误区--调参清单">
+  12. 常见误区 &amp; 调参清单
+  <a class="anchor" href="#12-%e5%b8%b8%e8%a7%81%e8%af%af%e5%8c%ba--%e8%b0%83%e5%8f%82%e6%b8%85%e5%8d%95">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>误区</th>
+          <th>纠正</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>抓一次 profile 就够</td>
+          <td>采样有随机性，至少多跑 3 次</td>
+      </tr>
+      <tr>
+          <td>Heap Profile = RSS</td>
+          <td>只包含 Go 堆，不含 mmap、Cgo、栈</td>
+      </tr>
+      <tr>
+          <td><code>pprof</code> 会拖慢线上</td>
+          <td>采样型开销极低，阻塞 / mutex 建议临时开启</td>
+      </tr>
+  </tbody>
+</table>
+<p><strong>调参</strong></p>
+<ul>
+<li><code>runtime.SetMutexProfileFraction(10)</code> – 每 10 次竞争采样一次</li>
+<li><code>runtime.SetBlockProfileRate(1)</code> – 捕捉所有阻塞（排障后改回 0）</li>
+</ul>
+<hr>
+<h2 id="13-参考链接">
+  13. 参考链接
+  <a class="anchor" href="#13-%e5%8f%82%e8%80%83%e9%93%be%e6%8e%a5">#</a>
+</h2>
+<ul>
+<li>Go 官方 Blog《Profiling Go Programs》</li>
+<li>Brendan Gregg FlameGraph 项目</li>
+<li>Parca.dev / Pyroscope.io / Grafana Cloud Continuous Profiling</li>
+<li>Go 1.23 Release Notes – PGO &amp; profiler 改进</li>
+</ul>
+<hr>
+<blockquote>
+<p><strong>建议</strong>：在每个重大版本升级后，重新评估采样率与阈值。Go 运行时及 GC 每年都在进步，历史“玄学调参”可能已过时。</p></blockquote>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#目录">目录</a></li>
+    <li><a href="#1-概览pprof-能解决什么问题">1. 概览：<code>pprof</code> 能解决什么问题</a></li>
+    <li><a href="#2-profile-类型与采样原理">2. Profile 类型与采样原理</a></li>
+    <li><a href="#3-离线采集基准测试--cli">3. 离线采集：基准测试 &amp; CLI</a></li>
+    <li><a href="#4-在线采集nethttppprof">4. 在线采集：<code>net/http/pprof</code></a>
+      <ul>
+        <li><a href="#常用抓取命令">常用抓取命令</a></li>
+      </ul>
+    </li>
+    <li><a href="#5-可视化">5. 可视化</a>
+      <ul>
+        <li><a href="#51-cli">5.1 CLI</a></li>
+        <li><a href="#52-内置-web">5.2 内置 Web</a></li>
+        <li><a href="#53-speedscope">5.3 Speedscope</a></li>
+      </ul>
+    </li>
+    <li><a href="#6-案例一cpu-hotspot">6. 案例一：CPU Hotspot</a></li>
+    <li><a href="#7-案例二内存泄漏">7. 案例二：内存泄漏</a></li>
+    <li><a href="#8-案例三阻塞--mutex">8. 案例三：阻塞 / Mutex</a></li>
+    <li><a href="#9-持续-profiling">9. 持续 Profiling</a></li>
+    <li><a href="#10-pgoprofile-guided-optimization">10. PGO：Profile-Guided Optimization</a></li>
+    <li><a href="#11-自动化工作流">11. 自动化工作流</a></li>
+    <li><a href="#12-常见误区--调参清单">12. 常见误区 &amp; 调参清单</a></li>
+    <li><a href="#13-参考链接">13. 参考链接</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

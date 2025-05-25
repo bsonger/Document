@@ -1,0 +1,2443 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  🧠 Cilium 生产环境复杂示例（L7 策略 &#43; Egress Gateway &#43; ClusterMesh）
+  #
+
+本示例模拟一个典型的生产微服务架构场景，包含以下特性：
+
+使用 Cilium 作为 CNI
+基于标签的 L3/L4 策略控制
+精细的 L7 HTTP 策略（基于路径、方法）
+Egress Gateway 限定 Pod 出口 IP
+跨命名空间策略
+多集群通信（ClusterMesh 简要配置）
+
+
+
+  📦 应用拓扑说明
+  #
+
+frontend (namespace: frontend)
+   |
+   |--&gt; backend (namespace: backend)
+               |
+               |--&gt; external API (egress: api.external.com)
+
+
+  📑 1. 跨命名空间的 L7 策略
+  #
+
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-frontend-to-backend
+  namespace: backend
+spec:
+  endpointSelector:
+    matchLabels:
+      app: backend
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            app: frontend
+        - namespaceSelector:
+            matchLabels:
+              name: frontend
+      toPorts:
+        - ports:
+            - port: &#34;8080&#34;
+              protocol: TCP
+          rules:
+            http:
+              - method: &#34;GET&#34;
+                path: &#34;/api/v1/status&#34;
+              - method: &#34;POST&#34;
+                path: &#34;/api/v1/submit&#34;
+
+
+  🌐 2. Egress Gateway 配置（出公网使用固定 IP）
+  #
+
+
+  Egress Gateway Policy
+  #
+
+apiVersion: cilium.io/v2alpha1
+kind: CiliumEgressGatewayPolicy
+metadata:
+  name: backend-egress
+spec:
+  egress:
+    - podSelector:
+        matchLabels:
+          app: backend
+      namespaceSelector:
+        matchLabels:
+          name: backend
+      destinationCIDRs:
+        - &#34;0.0.0.0/0&#34;
+      egressGateway: 
+        nodeSelector:
+          matchLabels:
+            role: egress-gw
+
+对应节点需设置标识：kubectl label node &lt;node&gt; role=egress-gw">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="example">
+  <meta property="og:description" content="🧠 Cilium 生产环境复杂示例（L7 策略 &#43; Egress Gateway &#43; ClusterMesh） # 本示例模拟一个典型的生产微服务架构场景，包含以下特性：
+使用 Cilium 作为 CNI 基于标签的 L3/L4 策略控制 精细的 L7 HTTP 策略（基于路径、方法） Egress Gateway 限定 Pod 出口 IP 跨命名空间策略 多集群通信（ClusterMesh 简要配置） 📦 应用拓扑说明 # frontend (namespace: frontend) | |--&gt; backend (namespace: backend) | |--&gt; external API (egress: api.external.com) 📑 1. 跨命名空间的 L7 策略 # apiVersion: cilium.io/v2 kind: CiliumNetworkPolicy metadata: name: allow-frontend-to-backend namespace: backend spec: endpointSelector: matchLabels: app: backend ingress: - fromEndpoints: - matchLabels: app: frontend - namespaceSelector: matchLabels: name: frontend toPorts: - ports: - port: &#34;8080&#34; protocol: TCP rules: http: - method: &#34;GET&#34; path: &#34;/api/v1/status&#34; - method: &#34;POST&#34; path: &#34;/api/v1/submit&#34; 🌐 2. Egress Gateway 配置（出公网使用固定 IP） # Egress Gateway Policy # apiVersion: cilium.io/v2alpha1 kind: CiliumEgressGatewayPolicy metadata: name: backend-egress spec: egress: - podSelector: matchLabels: app: backend namespaceSelector: matchLabels: name: backend destinationCIDRs: - &#34;0.0.0.0/0&#34; egressGateway: nodeSelector: matchLabels: role: egress-gw 对应节点需设置标识：kubectl label node &lt;node&gt; role=egress-gw">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>example | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/">
+<link rel="stylesheet" href="/book.min.1934e4b2bf0cffaabc804455f03ab43222c3c70d50a4aeb328e45872a19e1461.css" integrity="sha256-GTTksr8M/6q8gERV8Dq0MiLDxw1QpK6zKORYcqGeFGE=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.dfbb9d2e66b23b39bee40e4a0a0db0c5f14faea76c8a4eb335a1662b6e46c399.js" integrity="sha256-37udLmayOzm&#43;5A5KCg2wxfFPrqdsik6zNaFmK25Gw5k=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31b994de57a0e3b8ac3c416719c2604f" class="toggle"  />
+    <label for="section-31b994de57a0e3b8ac3c416719c2604f" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f07eb1fd55c4e29187968fd45d8f9d80" class="toggle"  />
+    <label for="section-f07eb1fd55c4e29187968fd45d8f9d80" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/" class="">Pprof Analysis</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-045af9a3843544a75b50d7a9f4d18592" class="toggle"  />
+    <label for="section-045af9a3843544a75b50d7a9f4d18592" class="flex justify-between">
+      <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="">数据结构</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/" class="">Go Escape Analysis</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/" class="">Go Gc Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/" class="">Go Gmp Model</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e02213d69c40c10c74c67bdb1acd3a3a" class="toggle"  />
+    <label for="section-e02213d69c40c10c74c67bdb1acd3a3a" class="flex justify-between">
+      <a href="/docs/go/sync/" class="">sync</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_cond_guide/" class="">Sync Cond Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_once_guide/" class="">Sync Once Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_pool_guide/" class="">Sync Pool Guide</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-fb004d4a7419348fbead64778e20a8b1" class="toggle" checked />
+    <label for="section-fb004d4a7419348fbead64778e20a8b1" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">Cloud Native</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-9531af3c3e194cb5919a7839304c053b" class="toggle"  />
+    <label for="section-9531af3c3e194cb5919a7839304c053b" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="toggle"  />
+    <label for="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8b0a6328ccc683a23ccc56acefd0adb0" class="toggle"  />
+    <label for="section-8b0a6328ccc683a23ccc56acefd0adb0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-70f593c06217ec511a0c1b2a431747a9" class="toggle"  />
+    <label for="section-70f593c06217ec511a0c1b2a431747a9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de938862237794fd2ca1b4c4e7daaeda" class="toggle"  />
+    <label for="section-de938862237794fd2ca1b4c4e7daaeda" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d42e0dc199f16e421ba954314a519d35" class="toggle"  />
+    <label for="section-d42e0dc199f16e421ba954314a519d35" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="toggle"  />
+    <label for="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1921653c51a6c41972bd82dd8d89ccd0" class="toggle"  />
+    <label for="section-1921653c51a6c41972bd82dd8d89ccd0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bf3bd385815d1ffa8144653e938844c6" class="toggle"  />
+    <label for="section-bf3bd385815d1ffa8144653e938844c6" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81864014818235de3c40561bed2b850e" class="toggle"  />
+    <label for="section-81864014818235de3c40561bed2b850e" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-103bf14b5d70b74d6ec31e2ea9657f26" class="toggle"  />
+    <label for="section-103bf14b5d70b74d6ec31e2ea9657f26" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f405afe12b5ab057a3d4a89e312ea9c8" class="toggle"  />
+    <label for="section-f405afe12b5ab057a3d4a89e312ea9c8" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27eece6995f35f1dd2fe6a470753ff8f" class="toggle" checked />
+    <label for="section-27eece6995f35f1dd2fe6a470753ff8f" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="active">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-445308f2ecb6007569065adbc919a93c" class="toggle"  />
+    <label for="section-445308f2ecb6007569065adbc919a93c" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1988c9cce0fb4b6288d2523e22659366" class="toggle"  />
+    <label for="section-1988c9cce0fb4b6288d2523e22659366" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-96855e251a4dce44887698494e146633" class="toggle"  />
+    <label for="section-96855e251a4dce44887698494e146633" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-db48915e45a102166de57dcc69bf030a" class="toggle"  />
+    <label for="section-db48915e45a102166de57dcc69bf030a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-77a82058ac6d5402c5151c90216d4acd" class="toggle"  />
+    <label for="section-77a82058ac6d5402c5151c90216d4acd" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-cd44ada480cf09a54f178d9e1af8f0cb" class="toggle"  />
+    <label for="section-cd44ada480cf09a54f178d9e1af8f0cb" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/configuration/" class="">configuration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e3d8865be62419a4d536b53831605141" class="toggle"  />
+    <label for="section-e3d8865be62419a4d536b53831605141" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4db372ef1a247eb1212931452c76493d" class="toggle"  />
+    <label for="section-4db372ef1a247eb1212931452c76493d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="toggle"  />
+    <label for="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="flex justify-between">
+      <a role="button" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df8984aeb9957b4141770348328d854b" class="toggle"  />
+    <label for="section-df8984aeb9957b4141770348328d854b" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f30d0799c368f54af0bfced717b99046" class="toggle"  />
+    <label for="section-f30d0799c368f54af0bfced717b99046" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-727dc8241028b35df1de58529ba4a6f9" class="toggle"  />
+    <label for="section-727dc8241028b35df1de58529ba4a6f9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-975a7b9d961593382dc4f9868f329cab" class="toggle"  />
+    <label for="section-975a7b9d961593382dc4f9868f329cab" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c78358fadc8208403b75f5b50c1647fc" class="toggle"  />
+    <label for="section-c78358fadc8208403b75f5b50c1647fc" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c1d877d9bb7770c7105fb8021e278169" class="toggle"  />
+    <label for="section-c1d877d9bb7770c7105fb8021e278169" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="toggle"  />
+    <label for="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2e9e25540ce6b748c17344ee73c3b8e4" class="toggle"  />
+    <label for="section-2e9e25540ce6b748c17344ee73c3b8e4" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42a22a7d08310d1856aeba25a854d5d8" class="toggle"  />
+    <label for="section-42a22a7d08310d1856aeba25a854d5d8" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-84a39309bee2c95a1f61a4dd5644ab39" class="toggle"  />
+    <label for="section-84a39309bee2c95a1f61a4dd5644ab39" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27cee8dec73b1dd885764b764ec67b27" class="toggle"  />
+    <label for="section-27cee8dec73b1dd885764b764ec67b27" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3564f9311b92f61396270b54225a42cc" class="toggle"  />
+    <label for="section-3564f9311b92f61396270b54225a42cc" class="flex justify-between">
+      <a role="button" class="">Tekton</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_architecture/" class="">Tekton Architecture</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_ci_template/" class="">Tekton Ci Template</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_installation/" class="">Tekton Installation</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81ba98b293821218510c44fa6934eeb3" class="toggle"  />
+    <label for="section-81ba98b293821218510c44fa6934eeb3" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6706c2823eb504c0237afd0370fa6659" class="toggle"  />
+    <label for="section-6706c2823eb504c0237afd0370fa6659" class="flex justify-between">
+      <a role="button" class="">OpenTelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3fb52280cfcba23637db079796427c65" class="toggle"  />
+    <label for="section-3fb52280cfcba23637db079796427c65" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="toggle"  />
+    <label for="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-489fc317ec6b7f39f6c0410830596165" class="toggle"  />
+    <label for="section-489fc317ec6b7f39f6c0410830596165" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-662e416954ead599a6a0438f93c4856a" class="toggle"  />
+    <label for="section-662e416954ead599a6a0438f93c4856a" class="flex justify-between">
+      <a role="button" class="">platform</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="toggle"  />
+    <label for="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="toggle"  />
+    <label for="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-645bd24995f1411025c5950ae54361e7" class="toggle"  />
+    <label for="section-645bd24995f1411025c5950ae54361e7" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="toggle"  />
+    <label for="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e7370a17fc2d1f56c085c3ff44f0638d" class="toggle"  />
+    <label for="section-e7370a17fc2d1f56c085c3ff44f0638d" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-54a025bd9197d481dbd05a23c2b465b2" class="toggle"  />
+    <label for="section-54a025bd9197d481dbd05a23c2b465b2" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8ffa414c5a8c7277ed74af1a3baba36e" class="toggle"  />
+    <label for="section-8ffa414c5a8c7277ed74af1a3baba36e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="toggle"  />
+    <label for="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6326f064344c85b1d5e68f4f74e7f721" class="toggle"  />
+    <label for="section-6326f064344c85b1d5e68f4f74e7f721" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>example</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#-应用拓扑说明">📦 应用拓扑说明</a></li>
+    <li><a href="#-1-跨命名空间的-l7-策略">📑 1. 跨命名空间的 L7 策略</a></li>
+    <li><a href="#-2-egress-gateway-配置出公网使用固定-ip">🌐 2. Egress Gateway 配置（出公网使用固定 IP）</a>
+      <ul>
+        <li><a href="#egress-gateway-policy">Egress Gateway Policy</a></li>
+      </ul>
+    </li>
+    <li><a href="#-3-dns-based-策略只允许访问特定域名">🔐 3. DNS-based 策略（只允许访问特定域名）</a></li>
+    <li><a href="#-4-clustermesh-基础配置步骤简略">☁️ 4. ClusterMesh 基础配置步骤（简略）</a></li>
+    <li><a href="#-5-验证策略">✅ 5. 验证策略</a></li>
+    <li><a href="#-总结">🧾 总结</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="-cilium-生产环境复杂示例l7-策略--egress-gateway--clustermesh">
+  🧠 Cilium 生产环境复杂示例（L7 策略 + Egress Gateway + ClusterMesh）
+  <a class="anchor" href="#-cilium-%e7%94%9f%e4%ba%a7%e7%8e%af%e5%a2%83%e5%a4%8d%e6%9d%82%e7%a4%ba%e4%be%8bl7-%e7%ad%96%e7%95%a5--egress-gateway--clustermesh">#</a>
+</h1>
+<p>本示例模拟一个典型的生产微服务架构场景，包含以下特性：</p>
+<ul>
+<li>使用 Cilium 作为 CNI</li>
+<li>基于标签的 L3/L4 策略控制</li>
+<li>精细的 L7 HTTP 策略（基于路径、方法）</li>
+<li>Egress Gateway 限定 Pod 出口 IP</li>
+<li>跨命名空间策略</li>
+<li>多集群通信（ClusterMesh 简要配置）</li>
+</ul>
+<hr>
+<h2 id="-应用拓扑说明">
+  📦 应用拓扑说明
+  <a class="anchor" href="#-%e5%ba%94%e7%94%a8%e6%8b%93%e6%89%91%e8%af%b4%e6%98%8e">#</a>
+</h2>
+<pre tabindex="0"><code>frontend (namespace: frontend)
+   |
+   |--&gt; backend (namespace: backend)
+               |
+               |--&gt; external API (egress: api.external.com)
+</code></pre><hr>
+<h2 id="-1-跨命名空间的-l7-策略">
+  📑 1. 跨命名空间的 L7 策略
+  <a class="anchor" href="#-1-%e8%b7%a8%e5%91%bd%e5%90%8d%e7%a9%ba%e9%97%b4%e7%9a%84-l7-%e7%ad%96%e7%95%a5">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">apiVersion</span>: <span style="color:#ae81ff">cilium.io/v2</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">kind</span>: <span style="color:#ae81ff">CiliumNetworkPolicy</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">name</span>: <span style="color:#ae81ff">allow-frontend-to-backend</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">namespace</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">endpointSelector</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">app</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">ingress</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">fromEndpoints</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">app</span>: <span style="color:#ae81ff">frontend</span>
+</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">namespaceSelector</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>              <span style="color:#f92672">name</span>: <span style="color:#ae81ff">frontend</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">toPorts</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">ports</span>:
+</span></span><span style="display:flex;"><span>            - <span style="color:#f92672">port</span>: <span style="color:#e6db74">&#34;8080&#34;</span>
+</span></span><span style="display:flex;"><span>              <span style="color:#f92672">protocol</span>: <span style="color:#ae81ff">TCP</span>
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">rules</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">http</span>:
+</span></span><span style="display:flex;"><span>              - <span style="color:#f92672">method</span>: <span style="color:#e6db74">&#34;GET&#34;</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/api/v1/status&#34;</span>
+</span></span><span style="display:flex;"><span>              - <span style="color:#f92672">method</span>: <span style="color:#e6db74">&#34;POST&#34;</span>
+</span></span><span style="display:flex;"><span>                <span style="color:#f92672">path</span>: <span style="color:#e6db74">&#34;/api/v1/submit&#34;</span>
+</span></span></code></pre></div><hr>
+<h2 id="-2-egress-gateway-配置出公网使用固定-ip">
+  🌐 2. Egress Gateway 配置（出公网使用固定 IP）
+  <a class="anchor" href="#-2-egress-gateway-%e9%85%8d%e7%bd%ae%e5%87%ba%e5%85%ac%e7%bd%91%e4%bd%bf%e7%94%a8%e5%9b%ba%e5%ae%9a-ip">#</a>
+</h2>
+<h3 id="egress-gateway-policy">
+  Egress Gateway Policy
+  <a class="anchor" href="#egress-gateway-policy">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">apiVersion</span>: <span style="color:#ae81ff">cilium.io/v2alpha1</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">kind</span>: <span style="color:#ae81ff">CiliumEgressGatewayPolicy</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">name</span>: <span style="color:#ae81ff">backend-egress</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">egress</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">podSelector</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">app</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">namespaceSelector</span>:
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">name</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">destinationCIDRs</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#e6db74">&#34;0.0.0.0/0&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">egressGateway</span>: 
+</span></span><span style="display:flex;"><span>        <span style="color:#f92672">nodeSelector</span>:
+</span></span><span style="display:flex;"><span>          <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>            <span style="color:#f92672">role</span>: <span style="color:#ae81ff">egress-gw</span>
+</span></span></code></pre></div><blockquote>
+<p>对应节点需设置标识：<code>kubectl label node &lt;node&gt; role=egress-gw</code></p></blockquote>
+<hr>
+<h2 id="-3-dns-based-策略只允许访问特定域名">
+  🔐 3. DNS-based 策略（只允许访问特定域名）
+  <a class="anchor" href="#-3-dns-based-%e7%ad%96%e7%95%a5%e5%8f%aa%e5%85%81%e8%ae%b8%e8%ae%bf%e9%97%ae%e7%89%b9%e5%ae%9a%e5%9f%9f%e5%90%8d">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">apiVersion</span>: <span style="color:#ae81ff">cilium.io/v2</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">kind</span>: <span style="color:#ae81ff">CiliumNetworkPolicy</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">metadata</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">name</span>: <span style="color:#ae81ff">dns-egress-policy</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">namespace</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">spec</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">endpointSelector</span>:
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">matchLabels</span>:
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">app</span>: <span style="color:#ae81ff">backend</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">egress</span>:
+</span></span><span style="display:flex;"><span>    - <span style="color:#f92672">toFQDNs</span>:
+</span></span><span style="display:flex;"><span>        - <span style="color:#f92672">matchName</span>: <span style="color:#e6db74">&#34;api.external.com&#34;</span>
+</span></span></code></pre></div><hr>
+<h2 id="-4-clustermesh-基础配置步骤简略">
+  ☁️ 4. ClusterMesh 基础配置步骤（简略）
+  <a class="anchor" href="#-4-clustermesh-%e5%9f%ba%e7%a1%80%e9%85%8d%e7%bd%ae%e6%ad%a5%e9%aa%a4%e7%ae%80%e7%95%a5">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span><span style="color:#75715e"># 在两个集群中都安装 Cilium 且开启 ClusterMesh</span>
+</span></span><span style="display:flex;"><span>helm upgrade cilium cilium/cilium   --namespace kube-system   --set cluster.name<span style="color:#f92672">=</span>cluster-a   --set cluster.id<span style="color:#f92672">=</span><span style="color:#ae81ff">1</span>   --set clustermesh.useAPIServer<span style="color:#f92672">=</span>true   --set etcd.enabled<span style="color:#f92672">=</span>true
+</span></span></code></pre></div><ul>
+<li>使用共享 DNS 或 CoreDNS + etcd 连接两个集群</li>
+<li>服务和身份会在两个集群间同步</li>
+</ul>
+<hr>
+<h2 id="-5-验证策略">
+  ✅ 5. 验证策略
+  <a class="anchor" href="#-5-%e9%aa%8c%e8%af%81%e7%ad%96%e7%95%a5">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>cilium status
+</span></span><span style="display:flex;"><span>cilium monitor --type l7
+</span></span><span style="display:flex;"><span>cilium connectivity test
+</span></span><span style="display:flex;"><span>kubectl exec &lt;frontend-pod&gt; -- curl -X GET backend.backend.svc.cluster.local:8080/api/v1/status
+</span></span></code></pre></div><hr>
+<h2 id="-总结">
+  🧾 总结
+  <a class="anchor" href="#-%e6%80%bb%e7%bb%93">#</a>
+</h2>
+<p>此示例演示了 Cilium 在实际生产中如何组合多个功能：</p>
+<ul>
+<li>精确的应用层访问控制（HTTP Path/Method）</li>
+<li>命名空间隔离</li>
+<li>外部服务访问控制</li>
+<li>Egress IP 管理</li>
+<li>多集群服务互通（ClusterMesh）</li>
+</ul>
+<p>Cilium 可替代多种传统组件，提供统一的、高性能的网络 + 安全 + 可观测平台。</p>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#-应用拓扑说明">📦 应用拓扑说明</a></li>
+    <li><a href="#-1-跨命名空间的-l7-策略">📑 1. 跨命名空间的 L7 策略</a></li>
+    <li><a href="#-2-egress-gateway-配置出公网使用固定-ip">🌐 2. Egress Gateway 配置（出公网使用固定 IP）</a>
+      <ul>
+        <li><a href="#egress-gateway-policy">Egress Gateway Policy</a></li>
+      </ul>
+    </li>
+    <li><a href="#-3-dns-based-策略只允许访问特定域名">🔐 3. DNS-based 策略（只允许访问特定域名）</a></li>
+    <li><a href="#-4-clustermesh-基础配置步骤简略">☁️ 4. ClusterMesh 基础配置步骤（简略）</a></li>
+    <li><a href="#-5-验证策略">✅ 5. 验证策略</a></li>
+    <li><a href="#-总结">🧾 总结</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

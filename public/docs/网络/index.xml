@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>网络 on bei的个人博客</title>
+    <link>http://localhost:1313/docs/%E7%BD%91%E7%BB%9C/</link>
+    <description>Recent content in 网络 on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/%E7%BD%91%E7%BB%9C/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>tcp 协议</title>
+      <link>http://localhost:1313/docs/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/</guid>
+      <description>&lt;h2 id=&#34;详解三次握手四次挥手&#34;&gt;&#xA;  详解三次握手，四次挥手&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#%e8%af%a6%e8%a7%a3%e4%b8%89%e6%ac%a1%e6%8f%a1%e6%89%8b%e5%9b%9b%e6%ac%a1%e6%8c%a5%e6%89%8b&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h2&gt;&#xA;&lt;h4 id=&#34;三次握手建立连接&#34;&gt;&#xA;  三次握手（建立连接）&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#%e4%b8%89%e6%ac%a1%e6%8f%a1%e6%89%8b%e5%bb%ba%e7%ab%8b%e8%bf%9e%e6%8e%a5&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h4&gt;&#xA;&lt;p&gt;TCP采用 三次握手（Three-Way Handshake） 过程来建立可靠连接：&lt;/p&gt;&#xA;&lt;ol&gt;&#xA;&lt;li&gt;客户端发送 SYN（同步序列号）：&#xA;&lt;ul&gt;&#xA;&lt;li&gt;客户端向服务器发送一个 SYN 报文，表示请求建立连接。&lt;/li&gt;&#xA;&lt;li&gt;该报文的 SYN=1，并包含一个初始序列号 seq=x。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;/li&gt;&#xA;&lt;li&gt;服务器回应 SYN-ACK：&#xA;&lt;ul&gt;&#xA;&lt;li&gt;服务器收到 SYN 后，发送 SYN=1, ACK=1，并附带自己的初始序列号 seq=y，确认客户端的 seq=x+1。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;/li&gt;&#xA;&lt;li&gt;客户端回应 ACK：&#xA;&lt;ul&gt;&#xA;&lt;li&gt;客户端收到服务器的 SYN-ACK 后，发送 ACK=1，确认 seq=y+1，同时携带 seq=x+1。&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;/li&gt;&#xA;&lt;/ol&gt;&#xA;&lt;h4 id=&#34;四次挥手断开连接&#34;&gt;&#xA;  四次挥手（断开连接）&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#%e5%9b%9b%e6%ac%a1%e6%8c%a5%e6%89%8b%e6%96%ad%e5%bc%80%e8%bf%9e%e6%8e%a5&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h4&gt;&#xA;&lt;p&gt;TCP 采用 四次挥手（Four-Way Handshake） 断开连接：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

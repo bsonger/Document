@@ -1,0 +1,2449 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  🚀 Harbor 生产环境安装与 Keycloak 对接指南
+  #
+
+
+  🏗️ 一、生产环境 Harbor 安装步骤
+  #
+
+
+  1. 系统准备
+  #
+
+
+操作系统：Ubuntu 20.04 / CentOS 7&#43;
+环境要求：
+
+CPU ≥ 2 核
+内存 ≥ 4 GB
+磁盘 ≥ 40 GB
+
+
+安装依赖：
+sudo apt update &amp;&amp; sudo apt install docker.io docker-compose -y
+
+
+
+  2. 下载 Harbor 安装包
+  #
+
+wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-offline-installer-v2.10.0.tgz
+
+# 解压
+ tar -zxvf harbor-offline-installer-*.tgz
+cd harbor
+
+  3. 配置 harbor.yml
+  #
+
+编辑 harbor.yml 关键配置项：">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="bei的个人博客">
+  <meta property="og:description" content="🚀 Harbor 生产环境安装与 Keycloak 对接指南 # 🏗️ 一、生产环境 Harbor 安装步骤 # 1. 系统准备 # 操作系统：Ubuntu 20.04 / CentOS 7&#43; 环境要求： CPU ≥ 2 核 内存 ≥ 4 GB 磁盘 ≥ 40 GB 安装依赖： sudo apt update &amp;&amp; sudo apt install docker.io docker-compose -y 2. 下载 Harbor 安装包 # wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-offline-installer-v2.10.0.tgz # 解压 tar -zxvf harbor-offline-installer-*.tgz cd harbor 3. 配置 harbor.yml # 编辑 harbor.yml 关键配置项：">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>Install | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/">
+<link rel="stylesheet" href="/book.min.1934e4b2bf0cffaabc804455f03ab43222c3c70d50a4aeb328e45872a19e1461.css" integrity="sha256-GTTksr8M/6q8gERV8Dq0MiLDxw1QpK6zKORYcqGeFGE=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.dfbb9d2e66b23b39bee40e4a0a0db0c5f14faea76c8a4eb335a1662b6e46c399.js" integrity="sha256-37udLmayOzm&#43;5A5KCg2wxfFPrqdsik6zNaFmK25Gw5k=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31b994de57a0e3b8ac3c416719c2604f" class="toggle"  />
+    <label for="section-31b994de57a0e3b8ac3c416719c2604f" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f07eb1fd55c4e29187968fd45d8f9d80" class="toggle"  />
+    <label for="section-f07eb1fd55c4e29187968fd45d8f9d80" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/" class="">Pprof Analysis</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-045af9a3843544a75b50d7a9f4d18592" class="toggle"  />
+    <label for="section-045af9a3843544a75b50d7a9f4d18592" class="flex justify-between">
+      <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="">数据结构</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/" class="">Go Escape Analysis</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/" class="">Go Gc Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/" class="">Go Gmp Model</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e02213d69c40c10c74c67bdb1acd3a3a" class="toggle"  />
+    <label for="section-e02213d69c40c10c74c67bdb1acd3a3a" class="flex justify-between">
+      <a href="/docs/go/sync/" class="">sync</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_cond_guide/" class="">Sync Cond Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_once_guide/" class="">Sync Once Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_pool_guide/" class="">Sync Pool Guide</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-fb004d4a7419348fbead64778e20a8b1" class="toggle" checked />
+    <label for="section-fb004d4a7419348fbead64778e20a8b1" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">Cloud Native</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-9531af3c3e194cb5919a7839304c053b" class="toggle"  />
+    <label for="section-9531af3c3e194cb5919a7839304c053b" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="toggle"  />
+    <label for="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8b0a6328ccc683a23ccc56acefd0adb0" class="toggle"  />
+    <label for="section-8b0a6328ccc683a23ccc56acefd0adb0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-70f593c06217ec511a0c1b2a431747a9" class="toggle"  />
+    <label for="section-70f593c06217ec511a0c1b2a431747a9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de938862237794fd2ca1b4c4e7daaeda" class="toggle"  />
+    <label for="section-de938862237794fd2ca1b4c4e7daaeda" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d42e0dc199f16e421ba954314a519d35" class="toggle"  />
+    <label for="section-d42e0dc199f16e421ba954314a519d35" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="toggle"  />
+    <label for="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1921653c51a6c41972bd82dd8d89ccd0" class="toggle"  />
+    <label for="section-1921653c51a6c41972bd82dd8d89ccd0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bf3bd385815d1ffa8144653e938844c6" class="toggle"  />
+    <label for="section-bf3bd385815d1ffa8144653e938844c6" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81864014818235de3c40561bed2b850e" class="toggle"  />
+    <label for="section-81864014818235de3c40561bed2b850e" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-103bf14b5d70b74d6ec31e2ea9657f26" class="toggle"  />
+    <label for="section-103bf14b5d70b74d6ec31e2ea9657f26" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f405afe12b5ab057a3d4a89e312ea9c8" class="toggle"  />
+    <label for="section-f405afe12b5ab057a3d4a89e312ea9c8" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27eece6995f35f1dd2fe6a470753ff8f" class="toggle"  />
+    <label for="section-27eece6995f35f1dd2fe6a470753ff8f" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-445308f2ecb6007569065adbc919a93c" class="toggle"  />
+    <label for="section-445308f2ecb6007569065adbc919a93c" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1988c9cce0fb4b6288d2523e22659366" class="toggle"  />
+    <label for="section-1988c9cce0fb4b6288d2523e22659366" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-96855e251a4dce44887698494e146633" class="toggle" checked />
+    <label for="section-96855e251a4dce44887698494e146633" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="active">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-db48915e45a102166de57dcc69bf030a" class="toggle"  />
+    <label for="section-db48915e45a102166de57dcc69bf030a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-77a82058ac6d5402c5151c90216d4acd" class="toggle"  />
+    <label for="section-77a82058ac6d5402c5151c90216d4acd" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-cd44ada480cf09a54f178d9e1af8f0cb" class="toggle"  />
+    <label for="section-cd44ada480cf09a54f178d9e1af8f0cb" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/configuration/" class="">configuration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e3d8865be62419a4d536b53831605141" class="toggle"  />
+    <label for="section-e3d8865be62419a4d536b53831605141" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4db372ef1a247eb1212931452c76493d" class="toggle"  />
+    <label for="section-4db372ef1a247eb1212931452c76493d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="toggle"  />
+    <label for="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="flex justify-between">
+      <a role="button" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df8984aeb9957b4141770348328d854b" class="toggle"  />
+    <label for="section-df8984aeb9957b4141770348328d854b" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f30d0799c368f54af0bfced717b99046" class="toggle"  />
+    <label for="section-f30d0799c368f54af0bfced717b99046" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-727dc8241028b35df1de58529ba4a6f9" class="toggle"  />
+    <label for="section-727dc8241028b35df1de58529ba4a6f9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-975a7b9d961593382dc4f9868f329cab" class="toggle"  />
+    <label for="section-975a7b9d961593382dc4f9868f329cab" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c78358fadc8208403b75f5b50c1647fc" class="toggle"  />
+    <label for="section-c78358fadc8208403b75f5b50c1647fc" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c1d877d9bb7770c7105fb8021e278169" class="toggle"  />
+    <label for="section-c1d877d9bb7770c7105fb8021e278169" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="toggle"  />
+    <label for="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2e9e25540ce6b748c17344ee73c3b8e4" class="toggle"  />
+    <label for="section-2e9e25540ce6b748c17344ee73c3b8e4" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42a22a7d08310d1856aeba25a854d5d8" class="toggle"  />
+    <label for="section-42a22a7d08310d1856aeba25a854d5d8" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-84a39309bee2c95a1f61a4dd5644ab39" class="toggle"  />
+    <label for="section-84a39309bee2c95a1f61a4dd5644ab39" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27cee8dec73b1dd885764b764ec67b27" class="toggle"  />
+    <label for="section-27cee8dec73b1dd885764b764ec67b27" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3564f9311b92f61396270b54225a42cc" class="toggle"  />
+    <label for="section-3564f9311b92f61396270b54225a42cc" class="flex justify-between">
+      <a role="button" class="">Tekton</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_architecture/" class="">Tekton Architecture</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_ci_template/" class="">Tekton Ci Template</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_installation/" class="">Tekton Installation</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81ba98b293821218510c44fa6934eeb3" class="toggle"  />
+    <label for="section-81ba98b293821218510c44fa6934eeb3" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6706c2823eb504c0237afd0370fa6659" class="toggle"  />
+    <label for="section-6706c2823eb504c0237afd0370fa6659" class="flex justify-between">
+      <a role="button" class="">OpenTelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3fb52280cfcba23637db079796427c65" class="toggle"  />
+    <label for="section-3fb52280cfcba23637db079796427c65" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="toggle"  />
+    <label for="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-489fc317ec6b7f39f6c0410830596165" class="toggle"  />
+    <label for="section-489fc317ec6b7f39f6c0410830596165" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-662e416954ead599a6a0438f93c4856a" class="toggle"  />
+    <label for="section-662e416954ead599a6a0438f93c4856a" class="flex justify-between">
+      <a role="button" class="">platform</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="toggle"  />
+    <label for="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="toggle"  />
+    <label for="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-645bd24995f1411025c5950ae54361e7" class="toggle"  />
+    <label for="section-645bd24995f1411025c5950ae54361e7" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="toggle"  />
+    <label for="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e7370a17fc2d1f56c085c3ff44f0638d" class="toggle"  />
+    <label for="section-e7370a17fc2d1f56c085c3ff44f0638d" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-54a025bd9197d481dbd05a23c2b465b2" class="toggle"  />
+    <label for="section-54a025bd9197d481dbd05a23c2b465b2" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8ffa414c5a8c7277ed74af1a3baba36e" class="toggle"  />
+    <label for="section-8ffa414c5a8c7277ed74af1a3baba36e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="toggle"  />
+    <label for="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6326f064344c85b1d5e68f4f74e7f721" class="toggle"  />
+    <label for="section-6326f064344c85b1d5e68f4f74e7f721" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Install</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#-一生产环境-harbor-安装步骤">🏗️ 一、生产环境 Harbor 安装步骤</a>
+      <ul>
+        <li><a href="#1-系统准备">1. 系统准备</a></li>
+        <li><a href="#2-下载-harbor-安装包">2. 下载 Harbor 安装包</a></li>
+        <li><a href="#3-配置-harboryml">3. 配置 harbor.yml</a></li>
+        <li><a href="#4-安装-harbor">4. 安装 Harbor</a></li>
+      </ul>
+    </li>
+    <li><a href="#-二配置-keycloak-与-harbor-对接">🧩 二、配置 Keycloak 与 Harbor 对接</a>
+      <ul>
+        <li><a href="#1-创建-realm">1. 创建 Realm</a></li>
+        <li><a href="#2-创建-client">2. 创建 Client</a></li>
+        <li><a href="#3-启用功能">3. 启用功能</a></li>
+        <li><a href="#4-映射用户组可选">4. 映射用户组（可选）</a></li>
+      </ul>
+    </li>
+    <li><a href="#-三安全建议">🔐 三、安全建议</a></li>
+    <li><a href="#-四验证流程">✅ 四、验证流程</a></li>
+    <li><a href="#-五补充建议">📦 五、补充建议</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="-harbor-生产环境安装与-keycloak-对接指南">
+  🚀 Harbor 生产环境安装与 Keycloak 对接指南
+  <a class="anchor" href="#-harbor-%e7%94%9f%e4%ba%a7%e7%8e%af%e5%a2%83%e5%ae%89%e8%a3%85%e4%b8%8e-keycloak-%e5%af%b9%e6%8e%a5%e6%8c%87%e5%8d%97">#</a>
+</h1>
+<h2 id="-一生产环境-harbor-安装步骤">
+  🏗️ 一、生产环境 Harbor 安装步骤
+  <a class="anchor" href="#-%e4%b8%80%e7%94%9f%e4%ba%a7%e7%8e%af%e5%a2%83-harbor-%e5%ae%89%e8%a3%85%e6%ad%a5%e9%aa%a4">#</a>
+</h2>
+<h3 id="1-系统准备">
+  1. 系统准备
+  <a class="anchor" href="#1-%e7%b3%bb%e7%bb%9f%e5%87%86%e5%a4%87">#</a>
+</h3>
+<ul>
+<li>操作系统：Ubuntu 20.04 / CentOS 7+</li>
+<li>环境要求：
+<ul>
+<li>CPU ≥ 2 核</li>
+<li>内存 ≥ 4 GB</li>
+<li>磁盘 ≥ 40 GB</li>
+</ul>
+</li>
+<li>安装依赖：
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>sudo apt update <span style="color:#f92672">&amp;&amp;</span> sudo apt install docker.io docker-compose -y
+</span></span></code></pre></div></li>
+</ul>
+<h3 id="2-下载-harbor-安装包">
+  2. 下载 Harbor 安装包
+  <a class="anchor" href="#2-%e4%b8%8b%e8%bd%bd-harbor-%e5%ae%89%e8%a3%85%e5%8c%85">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-offline-installer-v2.10.0.tgz
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 解压</span>
+</span></span><span style="display:flex;"><span> tar -zxvf harbor-offline-installer-*.tgz
+</span></span><span style="display:flex;"><span>cd harbor
+</span></span></code></pre></div><h3 id="3-配置-harboryml">
+  3. 配置 harbor.yml
+  <a class="anchor" href="#3-%e9%85%8d%e7%bd%ae-harboryml">#</a>
+</h3>
+<p>编辑 <code>harbor.yml</code> 关键配置项：</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-yaml" data-lang="yaml"><span style="display:flex;"><span><span style="color:#f92672">hostname</span>: <span style="color:#ae81ff">harbor.yourdomain.com</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">https</span>:
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">port</span>: <span style="color:#ae81ff">443</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">certificate</span>: <span style="color:#ae81ff">/path/to/cert.pem</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">private_key</span>: <span style="color:#ae81ff">/path/to/key.pem</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">harbor_admin_password</span>: <span style="color:#ae81ff">YourStrongAdminPass</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">auth_mode</span>: <span style="color:#ae81ff">oidc</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_provider_name</span>: <span style="color:#ae81ff">keycloak</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_endpoint</span>: <span style="color:#ae81ff">https://keycloak.yourdomain.com/realms/harbor/.well-known/openid-configuration</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_client_id</span>: <span style="color:#ae81ff">harbor-client</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_client_secret</span>: <span style="color:#ae81ff">&lt;your-client-secret&gt;</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_scope</span>: <span style="color:#ae81ff">openid,profile,email,groups</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_verify_cert</span>: <span style="color:#66d9ef">true</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">oidc_auto_onboard</span>: <span style="color:#66d9ef">true</span>
+</span></span></code></pre></div><h3 id="4-安装-harbor">
+  4. 安装 Harbor
+  <a class="anchor" href="#4-%e5%ae%89%e8%a3%85-harbor">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>./install.sh
+</span></span></code></pre></div><hr>
+<h2 id="-二配置-keycloak-与-harbor-对接">
+  🧩 二、配置 Keycloak 与 Harbor 对接
+  <a class="anchor" href="#-%e4%ba%8c%e9%85%8d%e7%bd%ae-keycloak-%e4%b8%8e-harbor-%e5%af%b9%e6%8e%a5">#</a>
+</h2>
+<h3 id="1-创建-realm">
+  1. 创建 Realm
+  <a class="anchor" href="#1-%e5%88%9b%e5%bb%ba-realm">#</a>
+</h3>
+<ul>
+<li>名称建议为 <code>harbor</code></li>
+</ul>
+<h3 id="2-创建-client">
+  2. 创建 Client
+  <a class="anchor" href="#2-%e5%88%9b%e5%bb%ba-client">#</a>
+</h3>
+<ul>
+<li>Client ID: <code>harbor-client</code></li>
+<li>Access Type: <code>confidential</code></li>
+<li>Root URL: <code>https://harbor.yourdomain.com</code></li>
+<li>Redirect URI: <code>https://harbor.yourdomain.com/c/oidc/callback</code></li>
+</ul>
+<h3 id="3-启用功能">
+  3. 启用功能
+  <a class="anchor" href="#3-%e5%90%af%e7%94%a8%e5%8a%9f%e8%83%bd">#</a>
+</h3>
+<ul>
+<li>启用以下选项：
+<ul>
+<li>Standard Flow Enabled</li>
+<li>Direct Access Grants Enabled</li>
+<li>Service Accounts Enabled</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-映射用户组可选">
+  4. 映射用户组（可选）
+  <a class="anchor" href="#4-%e6%98%a0%e5%b0%84%e7%94%a8%e6%88%b7%e7%bb%84%e5%8f%af%e9%80%89">#</a>
+</h3>
+<ul>
+<li>添加 Mapper：
+<ul>
+<li>Name: <code>groups</code></li>
+<li>Token Claim Name: <code>groups</code></li>
+<li>Claim JSON Type: <code>String</code></li>
+<li>Add to ID token / access token: ✅</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2 id="-三安全建议">
+  🔐 三、安全建议
+  <a class="anchor" href="#-%e4%b8%89%e5%ae%89%e5%85%a8%e5%bb%ba%e8%ae%ae">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>项目</th>
+          <th>建议</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>TLS 证书</td>
+          <td>使用 CA 签发证书</td>
+      </tr>
+      <tr>
+          <td>镜像扫描</td>
+          <td>启用 Trivy 漏洞扫描</td>
+      </tr>
+      <tr>
+          <td>数据库外置</td>
+          <td>使用外部 PostgreSQL 提升可维护性</td>
+      </tr>
+      <tr>
+          <td>镜像签名</td>
+          <td>配合 Cosign / Notary 实现镜像签名</td>
+      </tr>
+      <tr>
+          <td>RBAC 权限控制</td>
+          <td>Keycloak 分组 + Harbor 项目权限</td>
+      </tr>
+      <tr>
+          <td>日志与审计</td>
+          <td>启用 <code>audit.log</code> 并定期备份</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="-四验证流程">
+  ✅ 四、验证流程
+  <a class="anchor" href="#-%e5%9b%9b%e9%aa%8c%e8%af%81%e6%b5%81%e7%a8%8b">#</a>
+</h2>
+<ol>
+<li>启动 Harbor 并访问 <code>https://harbor.yourdomain.com</code></li>
+<li>点击登录，将跳转到 Keycloak 页面</li>
+<li>登录后自动完成注册并进入 Harbor 控制台</li>
+</ol>
+<hr>
+<h2 id="-五补充建议">
+  📦 五、补充建议
+  <a class="anchor" href="#-%e4%ba%94%e8%a1%a5%e5%85%85%e5%bb%ba%e8%ae%ae">#</a>
+</h2>
+<ul>
+<li>Harbor 支持高可用部署，可配合 Nginx Ingress + Keepalived 实现</li>
+<li>Harbor 支持 Helm Charts 管理，可结合 GitOps 工具使用</li>
+<li>建议定期更新 Trivy 数据库，保持漏洞扫描能力的时效性</li>
+</ul>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#-一生产环境-harbor-安装步骤">🏗️ 一、生产环境 Harbor 安装步骤</a>
+      <ul>
+        <li><a href="#1-系统准备">1. 系统准备</a></li>
+        <li><a href="#2-下载-harbor-安装包">2. 下载 Harbor 安装包</a></li>
+        <li><a href="#3-配置-harboryml">3. 配置 harbor.yml</a></li>
+        <li><a href="#4-安装-harbor">4. 安装 Harbor</a></li>
+      </ul>
+    </li>
+    <li><a href="#-二配置-keycloak-与-harbor-对接">🧩 二、配置 Keycloak 与 Harbor 对接</a>
+      <ul>
+        <li><a href="#1-创建-realm">1. 创建 Realm</a></li>
+        <li><a href="#2-创建-client">2. 创建 Client</a></li>
+        <li><a href="#3-启用功能">3. 启用功能</a></li>
+        <li><a href="#4-映射用户组可选">4. 映射用户组（可选）</a></li>
+      </ul>
+    </li>
+    <li><a href="#-三安全建议">🔐 三、安全建议</a></li>
+    <li><a href="#-四验证流程">✅ 四、验证流程</a></li>
+    <li><a href="#-五补充建议">📦 五、补充建议</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

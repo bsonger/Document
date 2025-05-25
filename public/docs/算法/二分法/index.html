@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="本章节介绍贪心算法
+
+  基本思想
+  #
+
+
+局部最优解：在每一步决策中，选择当前状态下最优的局部解
+无后效性：当前的选择不会影响后续的选择，即不依赖于未来的选择
+希望导致全局最优解：通过一系列局部最优解，最终得到全局最优解
+
+
+  适用条件
+  #
+
+
+贪心选择性质：问题的全局最优解可以通过一系列局部最优选择得到
+最优子结构：问题的最优解包含子问题的最优解
+
+
+  步骤
+  #
+
+
+问题分解：将问题分为若干个子问题
+局部最优选择：对每个子问题，选择一个局部最优解
+合并解：将局部最优解合并为全局解
+
+
+  经典应用
+  #
+
+
+活动选择问题：选择最多的互不重叠的活动。
+霍夫曼编码：构造最优前缀编码。
+最小生成树：如Prim算法和Kruskal算法。
+最短路径问题：如Dijkstra算法。
+背包问题的分数版本：选择单位价值最高的物品。
+
+
+  优缺点
+  #
+
+优点">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%88%86%E6%B3%95/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="贪心算法">
+  <meta property="og:description" content="本章节介绍贪心算法
+基本思想 # 局部最优解：在每一步决策中，选择当前状态下最优的局部解 无后效性：当前的选择不会影响后续的选择，即不依赖于未来的选择 希望导致全局最优解：通过一系列局部最优解，最终得到全局最优解 适用条件 # 贪心选择性质：问题的全局最优解可以通过一系列局部最优选择得到 最优子结构：问题的最优解包含子问题的最优解 步骤 # 问题分解：将问题分为若干个子问题 局部最优选择：对每个子问题，选择一个局部最优解 合并解：将局部最优解合并为全局解 经典应用 # 活动选择问题：选择最多的互不重叠的活动。 霍夫曼编码：构造最优前缀编码。 最小生成树：如Prim算法和Kruskal算法。 最短路径问题：如Dijkstra算法。 背包问题的分数版本：选择单位价值最高的物品。 优缺点 # 优点">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="website">
+<title>贪心算法 | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%88%86%E6%B3%95/">
+<link rel="stylesheet" href="/book.min.ac28969af46d427bd4a14d9414f79951f07fd68d5ade63d08e54ddd4d79f4f96.css" integrity="sha256-rCiWmvRtQnvUoU2UFPeZUfB/1o1a3mPQjlTd1NefT5Y=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.12451cedf8ee1a1f9e330dd4716d4987631529fc14063a79ccbf6103a894269c.js" integrity="sha256-EkUc7fjuGh&#43;eMw3UcW1Jh2MVKfwUBjp5zL9hA6iUJpw=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<link rel="alternate" type="application/rss+xml" href="http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%88%86%E6%B3%95/index.xml" title="bei的个人博客" />
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2608b3cf5c3ac624d703023278c7b939" class="toggle"  />
+    <label for="section-2608b3cf5c3ac624d703023278c7b939" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/first/" class="">First</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4678f632a7e8f39e60ae21d64515a594" class="toggle"  />
+    <label for="section-4678f632a7e8f39e60ae21d64515a594" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-5dab1a48ae15d4aff3124e3ef974031a" class="toggle"  />
+    <label for="section-5dab1a48ae15d4aff3124e3ef974031a" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a1e41d45d7656443e0cbce6d2bca6414" class="toggle"  />
+    <label for="section-a1e41d45d7656443e0cbce6d2bca6414" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-33910d4cbd8a44a4076ec2d7c9cb2873" class="toggle"  />
+    <label for="section-33910d4cbd8a44a4076ec2d7c9cb2873" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a544e15b32eb60e3f7b72072615455bc" class="toggle"  />
+    <label for="section-a544e15b32eb60e3f7b72072615455bc" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-40bf1e875710a5f13b27cb3a310d6ac8" class="toggle"  />
+    <label for="section-40bf1e875710a5f13b27cb3a310d6ac8" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df3093f84102cc1b8a18ec7136f68e0f" class="toggle"  />
+    <label for="section-df3093f84102cc1b8a18ec7136f68e0f" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/thanos/" class="">Thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="toggle"  />
+    <label for="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="flex justify-between">
+      <a href="/docs/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-01c557692289b976b7344a94066ca02d" class="toggle"  />
+    <label for="section-01c557692289b976b7344a94066ca02d" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-64e3c4b818cc56636fca6383a53dcfa0" class="toggle"  />
+    <label for="section-64e3c4b818cc56636fca6383a53dcfa0" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7004701dca31b29ee01e7cd8557820e0" class="toggle"  />
+    <label for="section-7004701dca31b29ee01e7cd8557820e0" class="flex justify-between">
+      <a href="/docs/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6e3ea0c9242bdbcc414f7cda04cec58c" class="toggle"  />
+    <label for="section-6e3ea0c9242bdbcc414f7cda04cec58c" class="flex justify-between">
+      <a href="/docs/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/develop/client-go/informer/" class="">informer</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b76e269c41b1cb614c05366ddc37058b" class="toggle" checked />
+    <label for="section-b76e269c41b1cb614c05366ddc37058b" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-febf878ca1ed3c64e0ca0088e875d117" class="toggle" checked />
+    <label for="section-febf878ca1ed3c64e0ca0088e875d117" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%88%86%E6%B3%95/" class="active">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%88%86%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-86776456bcb41986d56da012b3b9f9fc" class="toggle"  />
+    <label for="section-86776456bcb41986d56da012b3b9f9fc" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42b0a7d9feb3ad4b2546a01980a16a27" class="toggle"  />
+    <label for="section-42b0a7d9feb3ad4b2546a01980a16a27" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-60fa73a99ad1421d8374709175cc7ac0" class="toggle"  />
+    <label for="section-60fa73a99ad1421d8374709175cc7ac0" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-019d5d21d0d7c8849cc5ce61026157f9" class="toggle"  />
+    <label for="section-019d5d21d0d7c8849cc5ce61026157f9" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31a750133f762d02795905d83cd1561e" class="toggle"  />
+    <label for="section-31a750133f762d02795905d83cd1561e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b8b01f447ca150e2604fce82f82b1952" class="toggle"  />
+    <label for="section-b8b01f447ca150e2604fce82f82b1952" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>贪心算法</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#基本思想">基本思想</a></li>
+    <li><a href="#适用条件">适用条件</a></li>
+    <li><a href="#步骤">步骤</a></li>
+    <li><a href="#经典应用">经典应用</a></li>
+    <li><a href="#优缺点">优缺点</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><p>本章节介绍贪心算法</p>
+<h2 id="基本思想">
+  基本思想
+  <a class="anchor" href="#%e5%9f%ba%e6%9c%ac%e6%80%9d%e6%83%b3">#</a>
+</h2>
+<ul>
+<li>局部最优解：在每一步决策中，选择当前状态下最优的局部解</li>
+<li>无后效性：当前的选择不会影响后续的选择，即不依赖于未来的选择</li>
+<li>希望导致全局最优解：通过一系列局部最优解，最终得到全局最优解</li>
+</ul>
+<h2 id="适用条件">
+  适用条件
+  <a class="anchor" href="#%e9%80%82%e7%94%a8%e6%9d%a1%e4%bb%b6">#</a>
+</h2>
+<ul>
+<li>贪心选择性质：问题的全局最优解可以通过一系列局部最优选择得到</li>
+<li>最优子结构：问题的最优解包含子问题的最优解</li>
+</ul>
+<h2 id="步骤">
+  步骤
+  <a class="anchor" href="#%e6%ad%a5%e9%aa%a4">#</a>
+</h2>
+<ul>
+<li>问题分解：将问题分为若干个子问题</li>
+<li>局部最优选择：对每个子问题，选择一个局部最优解</li>
+<li>合并解：将局部最优解合并为全局解</li>
+</ul>
+<h2 id="经典应用">
+  经典应用
+  <a class="anchor" href="#%e7%bb%8f%e5%85%b8%e5%ba%94%e7%94%a8">#</a>
+</h2>
+<ul>
+<li>活动选择问题：选择最多的互不重叠的活动。</li>
+<li>霍夫曼编码：构造最优前缀编码。</li>
+<li>最小生成树：如Prim算法和Kruskal算法。</li>
+<li>最短路径问题：如Dijkstra算法。</li>
+<li>背包问题的分数版本：选择单位价值最高的物品。</li>
+</ul>
+<h2 id="优缺点">
+  优缺点
+  <a class="anchor" href="#%e4%bc%98%e7%bc%ba%e7%82%b9">#</a>
+</h2>
+<p>优点</p>
+<ul>
+<li>简单易实现</li>
+<li>通常具有较高的效率
+缺点</li>
+<li>不总是能得到全局最优解</li>
+<li>需要问题具有贪心选择性质和最优子结构</li>
+</ul>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#基本思想">基本思想</a></li>
+    <li><a href="#适用条件">适用条件</a></li>
+    <li><a href="#步骤">步骤</a></li>
+    <li><a href="#经典应用">经典应用</a></li>
+    <li><a href="#优缺点">优缺点</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

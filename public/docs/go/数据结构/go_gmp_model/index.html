@@ -1,0 +1,2661 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  Go 运行时调度：G‑P‑M 模型全解
+  #
+
+
+适用版本：Go 1.22（设计自 1.2 奠基，1.14 搭配异步抢占形成当前形态）
+核心概念：Goroutine (G)、Processor (P)、Machine (M)
+关键词：Work‑stealing、Run Queue、Syscall Block、Netpoll、Async Preempt">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="bei的个人博客">
+  <meta property="og:description" content="Go 运行时调度：G‑P‑M 模型全解 # 适用版本：Go 1.22（设计自 1.2 奠基，1.14 搭配异步抢占形成当前形态）
+核心概念：Goroutine (G)、Processor (P)、Machine (M)
+关键词：Work‑stealing、Run Queue、Syscall Block、Netpoll、Async Preempt">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>Go Gmp Model | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/">
+<link rel="stylesheet" href="/book.min.1934e4b2bf0cffaabc804455f03ab43222c3c70d50a4aeb328e45872a19e1461.css" integrity="sha256-GTTksr8M/6q8gERV8Dq0MiLDxw1QpK6zKORYcqGeFGE=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.dfbb9d2e66b23b39bee40e4a0a0db0c5f14faea76c8a4eb335a1662b6e46c399.js" integrity="sha256-37udLmayOzm&#43;5A5KCg2wxfFPrqdsik6zNaFmK25Gw5k=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-31b994de57a0e3b8ac3c416719c2604f" class="toggle" checked />
+    <label for="section-31b994de57a0e3b8ac3c416719c2604f" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f07eb1fd55c4e29187968fd45d8f9d80" class="toggle"  />
+    <label for="section-f07eb1fd55c4e29187968fd45d8f9d80" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/" class="">Pprof Analysis</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-045af9a3843544a75b50d7a9f4d18592" class="toggle" checked />
+    <label for="section-045af9a3843544a75b50d7a9f4d18592" class="flex justify-between">
+      <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="">数据结构</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/" class="">Go Escape Analysis</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/" class="">Go Gc Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/" class="active">Go Gmp Model</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e02213d69c40c10c74c67bdb1acd3a3a" class="toggle"  />
+    <label for="section-e02213d69c40c10c74c67bdb1acd3a3a" class="flex justify-between">
+      <a href="/docs/go/sync/" class="">sync</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_cond_guide/" class="">Sync Cond Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_once_guide/" class="">Sync Once Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_pool_guide/" class="">Sync Pool Guide</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-fb004d4a7419348fbead64778e20a8b1" class="toggle"  />
+    <label for="section-fb004d4a7419348fbead64778e20a8b1" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">Cloud Native</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-9531af3c3e194cb5919a7839304c053b" class="toggle"  />
+    <label for="section-9531af3c3e194cb5919a7839304c053b" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="toggle"  />
+    <label for="section-e5f2b2a5ab835a360a81b7e6b5ce0e56" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8b0a6328ccc683a23ccc56acefd0adb0" class="toggle"  />
+    <label for="section-8b0a6328ccc683a23ccc56acefd0adb0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-70f593c06217ec511a0c1b2a431747a9" class="toggle"  />
+    <label for="section-70f593c06217ec511a0c1b2a431747a9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de938862237794fd2ca1b4c4e7daaeda" class="toggle"  />
+    <label for="section-de938862237794fd2ca1b4c4e7daaeda" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d42e0dc199f16e421ba954314a519d35" class="toggle"  />
+    <label for="section-d42e0dc199f16e421ba954314a519d35" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="toggle"  />
+    <label for="section-c3bc7581dea0e766c9b4c35b85c88b2a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1921653c51a6c41972bd82dd8d89ccd0" class="toggle"  />
+    <label for="section-1921653c51a6c41972bd82dd8d89ccd0" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bf3bd385815d1ffa8144653e938844c6" class="toggle"  />
+    <label for="section-bf3bd385815d1ffa8144653e938844c6" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81864014818235de3c40561bed2b850e" class="toggle"  />
+    <label for="section-81864014818235de3c40561bed2b850e" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-103bf14b5d70b74d6ec31e2ea9657f26" class="toggle"  />
+    <label for="section-103bf14b5d70b74d6ec31e2ea9657f26" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f405afe12b5ab057a3d4a89e312ea9c8" class="toggle"  />
+    <label for="section-f405afe12b5ab057a3d4a89e312ea9c8" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27eece6995f35f1dd2fe6a470753ff8f" class="toggle"  />
+    <label for="section-27eece6995f35f1dd2fe6a470753ff8f" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-445308f2ecb6007569065adbc919a93c" class="toggle"  />
+    <label for="section-445308f2ecb6007569065adbc919a93c" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1988c9cce0fb4b6288d2523e22659366" class="toggle"  />
+    <label for="section-1988c9cce0fb4b6288d2523e22659366" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-96855e251a4dce44887698494e146633" class="toggle"  />
+    <label for="section-96855e251a4dce44887698494e146633" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-db48915e45a102166de57dcc69bf030a" class="toggle"  />
+    <label for="section-db48915e45a102166de57dcc69bf030a" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-77a82058ac6d5402c5151c90216d4acd" class="toggle"  />
+    <label for="section-77a82058ac6d5402c5151c90216d4acd" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-cd44ada480cf09a54f178d9e1af8f0cb" class="toggle"  />
+    <label for="section-cd44ada480cf09a54f178d9e1af8f0cb" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/configuration/" class="">configuration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e3d8865be62419a4d536b53831605141" class="toggle"  />
+    <label for="section-e3d8865be62419a4d536b53831605141" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4db372ef1a247eb1212931452c76493d" class="toggle"  />
+    <label for="section-4db372ef1a247eb1212931452c76493d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="toggle"  />
+    <label for="section-4f4eb6a34cac6da8aaf77eb1e4bf1af8" class="flex justify-between">
+      <a role="button" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df8984aeb9957b4141770348328d854b" class="toggle"  />
+    <label for="section-df8984aeb9957b4141770348328d854b" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f30d0799c368f54af0bfced717b99046" class="toggle"  />
+    <label for="section-f30d0799c368f54af0bfced717b99046" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-727dc8241028b35df1de58529ba4a6f9" class="toggle"  />
+    <label for="section-727dc8241028b35df1de58529ba4a6f9" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-975a7b9d961593382dc4f9868f329cab" class="toggle"  />
+    <label for="section-975a7b9d961593382dc4f9868f329cab" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c78358fadc8208403b75f5b50c1647fc" class="toggle"  />
+    <label for="section-c78358fadc8208403b75f5b50c1647fc" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c1d877d9bb7770c7105fb8021e278169" class="toggle"  />
+    <label for="section-c1d877d9bb7770c7105fb8021e278169" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="toggle"  />
+    <label for="section-4ed5bf98fbf0a82fc6ae8a88f236b863" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2e9e25540ce6b748c17344ee73c3b8e4" class="toggle"  />
+    <label for="section-2e9e25540ce6b748c17344ee73c3b8e4" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-42a22a7d08310d1856aeba25a854d5d8" class="toggle"  />
+    <label for="section-42a22a7d08310d1856aeba25a854d5d8" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-84a39309bee2c95a1f61a4dd5644ab39" class="toggle"  />
+    <label for="section-84a39309bee2c95a1f61a4dd5644ab39" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27cee8dec73b1dd885764b764ec67b27" class="toggle"  />
+    <label for="section-27cee8dec73b1dd885764b764ec67b27" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3564f9311b92f61396270b54225a42cc" class="toggle"  />
+    <label for="section-3564f9311b92f61396270b54225a42cc" class="flex justify-between">
+      <a role="button" class="">Tekton</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_architecture/" class="">Tekton Architecture</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_ci_template/" class="">Tekton Ci Template</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_installation/" class="">Tekton Installation</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-81ba98b293821218510c44fa6934eeb3" class="toggle"  />
+    <label for="section-81ba98b293821218510c44fa6934eeb3" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6706c2823eb504c0237afd0370fa6659" class="toggle"  />
+    <label for="section-6706c2823eb504c0237afd0370fa6659" class="flex justify-between">
+      <a role="button" class="">OpenTelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3fb52280cfcba23637db079796427c65" class="toggle"  />
+    <label for="section-3fb52280cfcba23637db079796427c65" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="toggle"  />
+    <label for="section-e87ecd5298f8beecbc50cc9a090eeb5b" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-489fc317ec6b7f39f6c0410830596165" class="toggle"  />
+    <label for="section-489fc317ec6b7f39f6c0410830596165" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-662e416954ead599a6a0438f93c4856a" class="toggle"  />
+    <label for="section-662e416954ead599a6a0438f93c4856a" class="flex justify-between">
+      <a role="button" class="">platform</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="toggle"  />
+    <label for="section-e9cb7a6b7eca880d246bf2a87b4671ad" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="toggle"  />
+    <label for="section-efa5eaecb1ece8ae58afe8a53f6d8f58" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-645bd24995f1411025c5950ae54361e7" class="toggle"  />
+    <label for="section-645bd24995f1411025c5950ae54361e7" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="toggle"  />
+    <label for="section-50e09404f1349fe0d1b935bc9b3d4aa6" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e7370a17fc2d1f56c085c3ff44f0638d" class="toggle"  />
+    <label for="section-e7370a17fc2d1f56c085c3ff44f0638d" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-54a025bd9197d481dbd05a23c2b465b2" class="toggle"  />
+    <label for="section-54a025bd9197d481dbd05a23c2b465b2" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8ffa414c5a8c7277ed74af1a3baba36e" class="toggle"  />
+    <label for="section-8ffa414c5a8c7277ed74af1a3baba36e" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="toggle"  />
+    <label for="section-b34cc1c8f17ddf5654ed88c61fe634ef" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6326f064344c85b1d5e68f4f74e7f721" class="toggle"  />
+    <label for="section-6326f064344c85b1d5e68f4f74e7f721" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Go Gmp Model</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1为什么要有-gpm">1 · 为什么要有 G‑P‑M？</a></li>
+    <li><a href="#2三大角色">2 · 三大角色</a>
+      <ul>
+        <li><a href="#21g-goroutine-控制块">2.1 <code>G</code> — Goroutine 控制块</a></li>
+        <li><a href="#22p-processor-逻辑-cpu">2.2 <code>P</code> — Processor (逻辑 CPU)</a></li>
+        <li><a href="#23m-machine-绑定-os-线程">2.3 <code>M</code> — Machine (绑定 OS 线程)</a></li>
+      </ul>
+    </li>
+    <li><a href="#3调度循环核心流程">3 · 调度循环核心流程</a>
+      <ul>
+        <li><a href="#31本地优先--workstealing">3.1 本地优先 &amp; Work‑stealing</a></li>
+        <li><a href="#32系统调用处理">3.2 系统调用处理</a></li>
+        <li><a href="#33网络-poller--timer">3.3 网络 Poller &amp; Timer</a></li>
+        <li><a href="#34抢占">3.4 抢占</a></li>
+      </ul>
+    </li>
+    <li><a href="#4状态机一览">4 · 状态机一览</a></li>
+    <li><a href="#5关键源码导航">5 · 关键源码导航</a></li>
+    <li><a href="#6调优与观测">6 · 调优与观测</a></li>
+    <li><a href="#7常见问题排查">7 · 常见问题排查</a></li>
+    <li><a href="#8版本演进亮点">8 · 版本演进亮点</a></li>
+    <li><a href="#9实战-tips">9 · 实战 Tips</a>
+      <ul>
+        <li><a href="#一句话总结">一句话总结</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="go运行时调度gpm模型全解">
+  Go 运行时调度：G‑P‑M 模型全解
+  <a class="anchor" href="#go%e8%bf%90%e8%a1%8c%e6%97%b6%e8%b0%83%e5%ba%a6gpm%e6%a8%a1%e5%9e%8b%e5%85%a8%e8%a7%a3">#</a>
+</h1>
+<blockquote>
+<p><strong>适用版本</strong>：Go 1.22（设计自 1.2 奠基，1.14 搭配异步抢占形成当前形态）<br>
+<strong>核心概念</strong>：Goroutine (<code>G</code>)、Processor (<code>P</code>)、Machine (<code>M</code>)<br>
+<strong>关键词</strong>：Work‑stealing、Run Queue、Syscall Block、Netpoll、Async Preempt</p></blockquote>
+<hr>
+<h2 id="1为什么要有-gpm">
+  1 · 为什么要有 G‑P‑M？
+  <a class="anchor" href="#1%e4%b8%ba%e4%bb%80%e4%b9%88%e8%a6%81%e6%9c%89-gpm">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>目标</th>
+          <th>问题</th>
+          <th>解决方案</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>高并发</strong></td>
+          <td>Goroutine 数可达百万；稀缺资源是核数</td>
+          <td>引入 <strong>P</strong> 承载调度上下文</td>
+      </tr>
+      <tr>
+          <td><strong>低成本切换</strong></td>
+          <td>OS 线程切换昂贵（&gt;1 µs）</td>
+          <td>在用户态切换 G (<code>~30 ns</code>)</td>
+      </tr>
+      <tr>
+          <td><strong>充分利用多核</strong></td>
+          <td>全局锁 &amp; 线程竞争严重</td>
+          <td><strong>Work‑stealing</strong> + 局部队列</td>
+      </tr>
+      <tr>
+          <td><strong>隐藏阻塞</strong></td>
+          <td>系统调用/网络 IO 可能卡核</td>
+          <td><strong>M &lt;=&gt; P 解绑</strong>，阻塞不拖慢调度</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="2三大角色">
+  2 · 三大角色
+  <a class="anchor" href="#2%e4%b8%89%e5%a4%a7%e8%a7%92%e8%89%b2">#</a>
+</h2>
+<h3 id="21g-goroutine-控制块">
+  2.1 <code>G</code> — Goroutine 控制块
+  <a class="anchor" href="#21g-goroutine-%e6%8e%a7%e5%88%b6%e5%9d%97">#</a>
+</h3>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-go" data-lang="go"><span style="display:flex;"><span><span style="color:#66d9ef">type</span> <span style="color:#a6e22e">g</span> <span style="color:#66d9ef">struct</span> {
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">stack</span>   <span style="color:#a6e22e">stack</span>    <span style="color:#75715e">// [lo, hi)</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">sched</span>   <span style="color:#a6e22e">gobuf</span>    <span style="color:#75715e">// 保存寄存器快照</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">status</span>  <span style="color:#66d9ef">uint32</span>   <span style="color:#75715e">// _Grunnable, _Grunning, ...</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">m</span>       <span style="color:#f92672">*</span><span style="color:#a6e22e">m</span>       <span style="color:#75715e">// 正在执行该 g 的 M</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#a6e22e">stackguard0</span>, <span style="color:#a6e22e">stackguard1</span> <span style="color:#66d9ef">uintptr</span> <span style="color:#75715e">// 抢占 &amp; 缺栈检查</span>
+</span></span><span style="display:flex;"><span>    <span style="color:#75715e">// ...省略</span>
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><ul>
+<li><strong>生命周期</strong>：<code>_Gidle → _Grunnable → _Grunning → _Gwaiting/_Gdead …</code></li>
+<li><strong>特殊 g</strong>：<code>g0</code> (系统栈)、<code>gsignal</code> (信号栈)</li>
+</ul>
+<h3 id="22p-processor-逻辑-cpu">
+  2.2 <code>P</code> — Processor (逻辑 CPU)
+  <a class="anchor" href="#22p-processor-%e9%80%bb%e8%be%91-cpu">#</a>
+</h3>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>含义</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>runq [256]g</code></td>
+          <td>每 P 本地环形队列</td>
+      </tr>
+      <tr>
+          <td><code>runqhead/runqtail</code></td>
+          <td>无锁环队列指针</td>
+      </tr>
+      <tr>
+          <td><code>schedtick</code></td>
+          <td>调度计数；抢占门控</td>
+      </tr>
+      <tr>
+          <td><code>mcache</code></td>
+          <td>本地对象缓存 (alloc fast‑path)</td>
+      </tr>
+      <tr>
+          <td><code>gcAssistTime</code></td>
+          <td>GC 助攻计时</td>
+      </tr>
+  </tbody>
+</table>
+<p><code>P</code> 的数量 = <strong><code>GOMAXPROCS</code></strong>，决定并发度上限。</p>
+<h3 id="23m-machine-绑定-os-线程">
+  2.3 <code>M</code> — Machine (绑定 OS 线程)
+  <a class="anchor" href="#23m-machine-%e7%bb%91%e5%ae%9a-os-%e7%ba%bf%e7%a8%8b">#</a>
+</h3>
+<table>
+  <thead>
+      <tr>
+          <th>字段</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>g0</code></td>
+          <td>系统栈；执行调度、GC</td>
+      </tr>
+      <tr>
+          <td><code>curg</code></td>
+          <td>当前运行的 G</td>
+      </tr>
+      <tr>
+          <td><code>p</code></td>
+          <td>绑定的 <code>P</code> (可空)</td>
+      </tr>
+      <tr>
+          <td><code>park</code></td>
+          <td>当无 P 可用时睡眠的 semaphore</td>
+      </tr>
+  </tbody>
+</table>
+<ul>
+<li><code>M</code> 可 <strong>多于</strong> <code>P</code>（阻塞系统调用需额外线程）。</li>
+</ul>
+<hr>
+<h2 id="3调度循环核心流程">
+  3 · 调度循环核心流程
+  <a class="anchor" href="#3%e8%b0%83%e5%ba%a6%e5%be%aa%e7%8e%af%e6%a0%b8%e5%bf%83%e6%b5%81%e7%a8%8b">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>┌─ G 进入 runnable ─┐
+</span></span><span style="display:flex;"><span>│  newproc/go func  │
+</span></span><span style="display:flex;"><span>└───────┬───────────┘
+</span></span><span style="display:flex;"><span>        ▼
+</span></span><span style="display:flex;"><span> P.runq ← push
+</span></span><span style="display:flex;"><span>        ▼                no local G ?
+</span></span><span style="display:flex;"><span>┌── execute G ──┐  ──► steal from other P ─┐
+</span></span><span style="display:flex;"><span>│  switch to g  │                         │
+</span></span><span style="display:flex;"><span>└───► run g     │                         ▼
+</span></span><span style="display:flex;"><span>        │                global runq ?
+</span></span><span style="display:flex;"><span>        │ syscall/block  ───────────────► steal from global
+</span></span><span style="display:flex;"><span>        ▼
+</span></span><span style="display:flex;"><span>  hand P back to sched  
+</span></span></code></pre></div><h3 id="31本地优先--workstealing">
+  3.1 本地优先 &amp; Work‑stealing
+  <a class="anchor" href="#31%e6%9c%ac%e5%9c%b0%e4%bc%98%e5%85%88--workstealing">#</a>
+</h3>
+<ol>
+<li><code>M</code> 从 <code>P.runq</code> Pop G，若空：
+<ol>
+<li>从全局队列 <code>sched.runq</code> 抢 0.5 批量</li>
+<li>随机挑一半 <code>P</code> 尝试 steal 1/2 G</li>
+</ol>
+</li>
+<li>新 <code>G</code> 创建时优先入 <strong>当前 P.runq</strong>；若满再入全局。</li>
+</ol>
+<h3 id="32系统调用处理">
+  3.2 系统调用处理
+  <a class="anchor" href="#32%e7%b3%bb%e7%bb%9f%e8%b0%83%e7%94%a8%e5%a4%84%e7%90%86">#</a>
+</h3>
+<ul>
+<li><strong>进入</strong>：<code>g</code> 进入 <code>_Gsyscall</code>；<code>M</code> 放回 <code>P</code>，自身进入 syscall 队列。</li>
+<li><strong>返回</strong>：唤醒休眠 <code>M</code> 或新建 <code>M</code> 以接管空闲 <code>P</code>。</li>
+</ul>
+<h3 id="33网络-poller--timer">
+  3.3 网络 Poller &amp; Timer
+  <a class="anchor" href="#33%e7%bd%91%e7%bb%9c-poller--timer">#</a>
+</h3>
+<ul>
+<li><code>netpoll</code> 轮询 epoll/kqueue；就绪 <code>G</code> 直接放入当前 <code>P</code> 或全局队列。</li>
+<li><code>timer</code> 到期后同样入队。</li>
+</ul>
+<h3 id="34抢占">
+  3.4 抢占
+  <a class="anchor" href="#34%e6%8a%a2%e5%8d%a0">#</a>
+</h3>
+<table>
+  <thead>
+      <tr>
+          <th>方式</th>
+          <th>版本</th>
+          <th>触发</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>协作抢占</strong></td>
+          <td>全版本</td>
+          <td>函数序言 <code>stackguard0</code> 检查</td>
+      </tr>
+      <tr>
+          <td><strong>异步抢占</strong></td>
+          <td>≥1.14</td>
+          <td>向线程发送信号，中断到 <code>g0</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="4状态机一览">
+  4 · 状态机一览
+  <a class="anchor" href="#4%e7%8a%b6%e6%80%81%e6%9c%ba%e4%b8%80%e8%a7%88">#</a>
+</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-text" data-lang="text"><span style="display:flex;"><span>           +---------+
+</span></span><span style="display:flex;"><span>           | _Gidle  |
+</span></span><span style="display:flex;"><span>           +----+----+
+</span></span><span style="display:flex;"><span>                |
+</span></span><span style="display:flex;"><span>          new G | acquire P
+</span></span><span style="display:flex;"><span>                v
+</span></span><span style="display:flex;"><span>+---------+  runnable   +-----------+
+</span></span><span style="display:flex;"><span>| _Gdead  |-----------&gt; | _Grunnable|
+</span></span><span style="display:flex;"><span>+---------+             +-----+-----+
+</span></span><span style="display:flex;"><span>                              |
+</span></span><span style="display:flex;"><span>                         schedule
+</span></span><span style="display:flex;"><span>                              v
+</span></span><span style="display:flex;"><span>                        +-----+-----+
+</span></span><span style="display:flex;"><span>                        | _Grunning |
+</span></span><span style="display:flex;"><span>                        +--+---+----+
+</span></span><span style="display:flex;"><span>                           |   |
+</span></span><span style="display:flex;"><span>               syscall/block|   |time slice
+</span></span><span style="display:flex;"><span>                           |   |
+</span></span><span style="display:flex;"><span>                    +------+------+----+
+</span></span><span style="display:flex;"><span>                    | _Gsyscall  | _Gwaiting
+</span></span><span style="display:flex;"><span>                    +------------+-------+
+</span></span></code></pre></div><hr>
+<h2 id="5关键源码导航">
+  5 · 关键源码导航
+  <a class="anchor" href="#5%e5%85%b3%e9%94%ae%e6%ba%90%e7%a0%81%e5%af%bc%e8%88%aa">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>文件</th>
+          <th>关注函数 / 结构</th>
+          <th>说明</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>runtime/proc.go</code></td>
+          <td><code>schedule</code>, <code>execute</code>, <code>newproc</code>, <code>goexit</code></td>
+          <td>调度主循环与 G 创建、销毁</td>
+      </tr>
+      <tr>
+          <td><code>runtime/runtime2.go</code></td>
+          <td><code>type g</code>, <code>type m</code>, <code>type p</code></td>
+          <td>三大核心数据结构</td>
+      </tr>
+      <tr>
+          <td><code>runtime/asm_*.s</code></td>
+          <td><code>goschedguarded</code>, <code>asminit</code></td>
+          <td>汇编入口、寄存器保存</td>
+      </tr>
+      <tr>
+          <td><code>runtime/netpoll_kqueue.go</code> / <code>_epoll.go</code></td>
+          <td><code>netpoll</code></td>
+          <td>I/O 多路复用集成</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="6调优与观测">
+  6 · 调优与观测
+  <a class="anchor" href="#6%e8%b0%83%e4%bc%98%e4%b8%8e%e8%a7%82%e6%b5%8b">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>场景</th>
+          <th>指标 / 工具</th>
+          <th>建议</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>调度瓶颈</strong></td>
+          <td><code>go tool trace</code> → “Scheduler Latency”</td>
+          <td>观察 <code>Proc Idle</code> vs <code>Runnable</code></td>
+      </tr>
+      <tr>
+          <td><strong>过量线程</strong></td>
+          <td><code>M-&gt;P</code> Ratio (runtime metrics)</td>
+          <td>频繁 syscall → 优化 I/O 模型</td>
+      </tr>
+      <tr>
+          <td><strong>栈拷贝高</strong></td>
+          <td>pprof <code>gcsamples-bytes</code></td>
+          <td>避免深递归 &amp; 大局部变量</td>
+      </tr>
+      <tr>
+          <td><strong>抢占延迟</strong></td>
+          <td>trace <code>GoSched/GoPreempt</code></td>
+          <td><code>runtime/debug.SetMaxThreads(…)</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="7常见问题排查">
+  7 · 常见问题排查
+  <a class="anchor" href="#7%e5%b8%b8%e8%a7%81%e9%97%ae%e9%a2%98%e6%8e%92%e6%9f%a5">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>症状</th>
+          <th>可能原因</th>
+          <th>排查</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><strong>CPU 利用率低</strong></td>
+          <td>GOMAXPROCS &lt; CPU 或 goroutine 阻塞多</td>
+          <td><code>runtime.GOMAXPROCS(0)</code> / trace</td>
+      </tr>
+      <tr>
+          <td><strong>高延迟尖刺</strong></td>
+          <td>系统调用阻塞；抢占不及时</td>
+          <td><code>sysmon</code> 日志 / <code>schedtrace=1000</code></td>
+      </tr>
+      <tr>
+          <td><strong>线程爆炸</strong></td>
+          <td>cgo 或反复陷入阻塞</td>
+          <td><code>ps -L</code> / <code>debug.SetMaxThreads</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="8版本演进亮点">
+  8 · 版本演进亮点
+  <a class="anchor" href="#8%e7%89%88%e6%9c%ac%e6%bc%94%e8%bf%9b%e4%ba%ae%e7%82%b9">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>版本</th>
+          <th>改进</th>
+          <th>影响</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td>1.2</td>
+          <td>引入 P、本地 runq</td>
+          <td>大幅提升并发度</td>
+      </tr>
+      <tr>
+          <td>1.10</td>
+          <td>netpoll 升级 &amp; timer 分层</td>
+          <td>定时器效率↑</td>
+      </tr>
+      <tr>
+          <td>1.14</td>
+          <td><strong>Async Preempt</strong></td>
+          <td>抢占延迟从 ms → µs</td>
+      </tr>
+      <tr>
+          <td>1.20</td>
+          <td>调度器 trace 重写</td>
+          <td>可视化更友好</td>
+      </tr>
+      <tr>
+          <td>1.22</td>
+          <td>Goroutine Aware Alloc (mcache)</td>
+          <td>分配快‑path 进一步本地化</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="9实战-tips">
+  9 · 实战 Tips
+  <a class="anchor" href="#9%e5%ae%9e%e6%88%98-tips">#</a>
+</h2>
+<ol>
+<li><strong>优先本地化</strong>：避免在热点循环中创建/销毁 goroutine，可用对象池或 channel 缓冲复用。</li>
+<li><strong>合理 GOMAXPROCS</strong>：I/O 型服务可略小于 CPU 核；计算型贴合物理核数。</li>
+<li><strong>善用 <code>go tool trace</code></strong>：调度可视化最直接。</li>
+<li><strong>避免长阻塞</strong>：数据库/网络调用加入超时；必要时用 semaphore 控并发。</li>
+<li><strong>使用 <code>GODEBUG=schedtrace=1000,scheddetail=1</code></strong> 观测实时 Runq 长度。</li>
+</ol>
+<hr>
+<h3 id="一句话总结">
+  一句话总结
+  <a class="anchor" href="#%e4%b8%80%e5%8f%a5%e8%af%9d%e6%80%bb%e7%bb%93">#</a>
+</h3>
+<blockquote>
+<p><strong>M 执行 G，P 提供执行权，runq + steal 让 goroutine 在多核间均衡，高并发低开销。</strong></p></blockquote>
+<hr>
+<p>如需对 <strong>trace 火焰图、schedtrace 日志</strong> 做深入解析，或定位调度延迟尖刺，欢迎将数据发给我，一起逐帧分析。</p>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1为什么要有-gpm">1 · 为什么要有 G‑P‑M？</a></li>
+    <li><a href="#2三大角色">2 · 三大角色</a>
+      <ul>
+        <li><a href="#21g-goroutine-控制块">2.1 <code>G</code> — Goroutine 控制块</a></li>
+        <li><a href="#22p-processor-逻辑-cpu">2.2 <code>P</code> — Processor (逻辑 CPU)</a></li>
+        <li><a href="#23m-machine-绑定-os-线程">2.3 <code>M</code> — Machine (绑定 OS 线程)</a></li>
+      </ul>
+    </li>
+    <li><a href="#3调度循环核心流程">3 · 调度循环核心流程</a>
+      <ul>
+        <li><a href="#31本地优先--workstealing">3.1 本地优先 &amp; Work‑stealing</a></li>
+        <li><a href="#32系统调用处理">3.2 系统调用处理</a></li>
+        <li><a href="#33网络-poller--timer">3.3 网络 Poller &amp; Timer</a></li>
+        <li><a href="#34抢占">3.4 抢占</a></li>
+      </ul>
+    </li>
+    <li><a href="#4状态机一览">4 · 状态机一览</a></li>
+    <li><a href="#5关键源码导航">5 · 关键源码导航</a></li>
+    <li><a href="#6调优与观测">6 · 调优与观测</a></li>
+    <li><a href="#7常见问题排查">7 · 常见问题排查</a></li>
+    <li><a href="#8版本演进亮点">8 · 版本演进亮点</a></li>
+    <li><a href="#9实战-tips">9 · 实战 Tips</a>
+      <ul>
+        <li><a href="#一句话总结">一句话总结</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

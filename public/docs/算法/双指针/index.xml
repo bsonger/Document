@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>双指针 on bei的个人博客</title>
+    <link>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/</link>
+    <description>Recent content in 双指针 on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>接雨水</title>
+      <link>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/</guid>
+      <description>&lt;h1 id=&#34;接雨水&#34;&gt;&#xA;  接雨水&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#%e6%8e%a5%e9%9b%a8%e6%b0%b4&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;p&gt;&#xA;  &lt;a href=&#34;https://leetcode.cn/problems/jump-game-ii/?envType=study-plan-v2&amp;amp;envId=top-100-liked&#34; title=&#34;接雨水&#34;&gt;leetcode 45&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;给定 n 个非负整数表示每个宽度为 1 的柱子的高度图，计算按此排列的柱子，下雨之后能接多少雨水。&lt;/p&gt;&#xA;&lt;p&gt;示例 1：&lt;/p&gt;&#xA;&lt;p&gt;&#xA;  &lt;img src=&#34;http://localhost:1313/images/leetcode/42.png&#34; alt=&#34;接雨水&#34; /&gt;&lt;/p&gt;&#xA;&lt;p&gt;输入：height = [0,1,0,2,1,0,1,3,2,1,2,1]&#xA;输出：6&#xA;解释：上面是由数组 [0,1,0,2,1,0,1,3,2,1,2,1] 表示的高度图，在这种情况下，可以接 6 个单位的雨水（蓝色部分表示雨水）。&#xA;示例 2：&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

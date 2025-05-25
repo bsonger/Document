@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Harbor on bei的个人博客</title>
+    <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/</link>
+    <description>Recent content in Harbor on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/</guid>
+      <description>&lt;h1 id=&#34;-harbor-最复杂的生产使用示例&#34;&gt;&#xA;  🧪 Harbor 最复杂的生产使用示例&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#-harbor-%e6%9c%80%e5%a4%8d%e6%9d%82%e7%9a%84%e7%94%9f%e4%ba%a7%e4%bd%bf%e7%94%a8%e7%a4%ba%e4%be%8b&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;p&gt;本示例演示在企业级生产环境中使用 Harbor 的复杂集成与最佳实践。该案例包括多数据中心部署、Keycloak 单点登录、CI/CD、镜像签名、漏洞扫描、多租户、异地灾备等完整场景。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/</guid>
+      <description>&lt;h1 id=&#34;-harbor-生产环境安装与-keycloak-对接指南&#34;&gt;&#xA;  🚀 Harbor 生产环境安装与 Keycloak 对接指南&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#-harbor-%e7%94%9f%e4%ba%a7%e7%8e%af%e5%a2%83%e5%ae%89%e8%a3%85%e4%b8%8e-keycloak-%e5%af%b9%e6%8e%a5%e6%8c%87%e5%8d%97&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;h2 id=&#34;-一生产环境-harbor-安装步骤&#34;&gt;&#xA;  🏗️ 一、生产环境 Harbor 安装步骤&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#-%e4%b8%80%e7%94%9f%e4%ba%a7%e7%8e%af%e5%a2%83-harbor-%e5%ae%89%e8%a3%85%e6%ad%a5%e9%aa%a4&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h2&gt;&#xA;&lt;h3 id=&#34;1-系统准备&#34;&gt;&#xA;  1. 系统准备&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#1-%e7%b3%bb%e7%bb%9f%e5%87%86%e5%a4%87&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h3&gt;&#xA;&lt;ul&gt;&#xA;&lt;li&gt;操作系统：Ubuntu 20.04 / CentOS 7+&lt;/li&gt;&#xA;&lt;li&gt;环境要求：&#xA;&lt;ul&gt;&#xA;&lt;li&gt;CPU ≥ 2 核&lt;/li&gt;&#xA;&lt;li&gt;内存 ≥ 4 GB&lt;/li&gt;&#xA;&lt;li&gt;磁盘 ≥ 40 GB&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;/li&gt;&#xA;&lt;li&gt;安装依赖：&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;sudo apt update &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&amp;amp;&lt;/span&gt; sudo apt install docker.io docker-compose -y&#xA;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/li&gt;&#xA;&lt;/ul&gt;&#xA;&lt;h3 id=&#34;2-下载-harbor-安装包&#34;&gt;&#xA;  2. 下载 Harbor 安装包&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#2-%e4%b8%8b%e8%bd%bd-harbor-%e5%ae%89%e8%a3%85%e5%8c%85&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h3&gt;&#xA;&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;wget https://github.com/goharbor/harbor/releases/download/v2.10.0/harbor-offline-installer-v2.10.0.tgz&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;# 解压&lt;/span&gt;&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt; tar -zxvf harbor-offline-installer-*.tgz&#xA;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;cd harbor&#xA;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;h3 id=&#34;3-配置-harboryml&#34;&gt;&#xA;  3. 配置 harbor.yml&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#3-%e9%85%8d%e7%bd%ae-harboryml&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h3&gt;&#xA;&lt;p&gt;编辑 &lt;code&gt;harbor.yml&lt;/code&gt; 关键配置项：&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/</guid>
+      <description>&lt;h1 id=&#34;-harbor-介绍文档&#34;&gt;&#xA;  🚢 Harbor 介绍文档&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#-harbor-%e4%bb%8b%e7%bb%8d%e6%96%87%e6%a1%a3&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;h2 id=&#34;-一harbor-简介&#34;&gt;&#xA;  📌 一、Harbor 简介&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#-%e4%b8%80harbor-%e7%ae%80%e4%bb%8b&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h2&gt;&#xA;&lt;p&gt;Harbor 是一个用于存储和分发容器镜像的企业级 Registry 服务，由 VMware 开源。它在 Docker Registry 的基础上扩展了角色访问控制、镜像复制、审计日志、镜像扫描、安全策略等企业功能，支持 Helm Chart 的托管，适用于多租户场景。&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

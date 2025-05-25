@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  部署前准备
+  #
+
+
+修改机器名
+
+hostnamectl set-hostname master
+
+关闭swap
+
+swapoff -a
+sed -i &#39;/swap / s/^\(.*\)$/#\1/g&#39; /etc/fstab
+free -m # 检查是否关闭swap
+
+ssh允许Root 登陆
+
+vim /etc/ssh/sshd_config
+
+增加
+
+Port 22
+PermitRootLogin yes
+
+passwd # 设置root 密码
+
+关闭防火墙
+
+sudo ufw disable
+
+修改apt 源地址
+
+cp /etc/apt/sources.list /etc/apt/sources.list.bak
+# 使用vim 替换/etc/apt/sources.list中的资源地址
+
+vim /etc/apt/sources.list
+
+deb http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+
+deb http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+
+deb http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+
+deb http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+
+deb http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse
+deb-src http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse
+# 更新
+vim /etc/resolv.conf
+# 添加一下两行
+nameserver 8.8.8.8
+nameserver 8.8.4.4
+
+apt-get update
+
+添加 Kubernetes apt 存储库
+
+sudo tee /etc/apt/sources.list.d/kubernetes.list &lt;&lt;-&#39;EOF&#39;
+deb https://mirrors.aliyun.com/kubernetes/apt kubernetes-xenial main
+EOF
+
+apt-get update
+
+
+
+The following signatures couldn&#39;t be verified because the public key is not available: NO_PUBKEY B53DC80D13EDEF05 NO_PUBKEY FEEA9169307EA071
+# 如果报错以上错误，执行下面一条命令 recv-keys 是报错现实的NO_PUBKEY 
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys FEEA9169307EA071
+
+安装kubectl kubeadm kubelet
+
+sudo apt-get install -y kubelet=1.22.2-00 kubeadm=1.22.2-00 kubectl=1.22.2-00
+
+安装docker
+
+apt-get install -y docker.io
+systemctl enable docker
+
+  master
+  #
+
+
+安装master 节点
+
+kubeadm init \
+--apiserver-advertise-address=192.168.31.239 \
+--image-repository registry.aliyuncs.com/google_containers \
+--kubernetes-version v1.22.0 \
+--service-cidr=10.96.0.0/12 \
+--pod-network-cidr=10.244.0.0/16
+
+  node
+  #
+
+
+安装node 节点
+
+kubeadm join 192.168.31.208:6443 --token u1soc8.1xyeqbzptpvvjz8f     --discovery-token-ca-cert-hash sha256:3406b992b2c05f27b398a81375082a72aa2a823fd82616e4f8cb6f2a24370bb3
+# kubeadm init 初始化完成会打印到console 上
+# 可以通过 kubeadm token create --print-join-command 查看
+">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/kubernetes/operate/install/master/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="kubernetes">
+  <meta property="og:description" content="部署前准备 # 修改机器名 hostnamectl set-hostname master 关闭swap swapoff -a sed -i &#39;/swap / s/^\(.*\)$/#\1/g&#39; /etc/fstab free -m # 检查是否关闭swap ssh允许Root 登陆 vim /etc/ssh/sshd_config 增加 Port 22 PermitRootLogin yes passwd # 设置root 密码 关闭防火墙 sudo ufw disable 修改apt 源地址 cp /etc/apt/sources.list /etc/apt/sources.list.bak # 使用vim 替换/etc/apt/sources.list中的资源地址 vim /etc/apt/sources.list deb http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse deb-src http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse deb http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse deb-src http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse deb http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse deb-src http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse deb http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse deb-src http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse deb http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse deb-src http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse # 更新 vim /etc/resolv.conf # 添加一下两行 nameserver 8.8.8.8 nameserver 8.8.4.4 apt-get update 添加 Kubernetes apt 存储库 sudo tee /etc/apt/sources.list.d/kubernetes.list &lt;&lt;-&#39;EOF&#39; deb https://mirrors.aliyun.com/kubernetes/apt kubernetes-xenial main EOF apt-get update The following signatures couldn&#39;t be verified because the public key is not available: NO_PUBKEY B53DC80D13EDEF05 NO_PUBKEY FEEA9169307EA071 # 如果报错以上错误，执行下面一条命令 recv-keys 是报错现实的NO_PUBKEY sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys FEEA9169307EA071 安装kubectl kubeadm kubelet sudo apt-get install -y kubelet=1.22.2-00 kubeadm=1.22.2-00 kubectl=1.22.2-00 安装docker apt-get install -y docker.io systemctl enable docker master # 安装master 节点 kubeadm init \ --apiserver-advertise-address=192.168.31.239 \ --image-repository registry.aliyuncs.com/google_containers \ --kubernetes-version v1.22.0 \ --service-cidr=10.96.0.0/12 \ --pod-network-cidr=10.244.0.0/16 node # 安装node 节点 kubeadm join 192.168.31.208:6443 --token u1soc8.1xyeqbzptpvvjz8f --discovery-token-ca-cert-hash sha256:3406b992b2c05f27b398a81375082a72aa2a823fd82616e4f8cb6f2a24370bb3 # kubeadm init 初始化完成会打印到console 上 # 可以通过 kubeadm token create --print-join-command 查看">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>kubernetes | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/kubernetes/operate/install/master/">
+<link rel="stylesheet" href="/book.min.e9b7700fb813d8e4f4d11fc42436b34739f27c03dbcd706480eafb69d0c8ad9b.css" integrity="sha256-6bdwD7gT2OT00R/EJDazRznyfAPbzXBkgOr7adDIrZs=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.a9f437ec6b1f35763e8b2ba9c9c750f4d544802fd30576cec43d13b1de911091.js" integrity="sha256-qfQ37GsfNXY&#43;iyupycdQ9NVEgC/TBXbOxD0Tsd6REJE=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-2608b3cf5c3ac624d703023278c7b939" class="toggle"  />
+    <label for="section-2608b3cf5c3ac624d703023278c7b939" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/first/" class="">First</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4678f632a7e8f39e60ae21d64515a594" class="toggle"  />
+    <label for="section-4678f632a7e8f39e60ae21d64515a594" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-5dab1a48ae15d4aff3124e3ef974031a" class="toggle"  />
+    <label for="section-5dab1a48ae15d4aff3124e3ef974031a" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-0e85eee2f4e1ce18e3700ab4708fd09b" class="toggle"  />
+    <label for="section-0e85eee2f4e1ce18e3700ab4708fd09b" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/%E6%BA%90%E7%A0%81/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a544e15b32eb60e3f7b72072615455bc" class="toggle"  />
+    <label for="section-a544e15b32eb60e3f7b72072615455bc" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/prometheus/operator/" class="">源码</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-df3093f84102cc1b8a18ec7136f68e0f" class="toggle"  />
+    <label for="section-df3093f84102cc1b8a18ec7136f68e0f" class="flex justify-between">
+      <a href="/docs/%E7%9B%91%E6%8E%A7/thanos/" class="">Thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="toggle" checked />
+    <label for="section-bb4ee2bc4a6a6f1da439f22039aa2c3b" class="flex justify-between">
+      <a href="/docs/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-01c557692289b976b7344a94066ca02d" class="toggle" checked />
+    <label for="section-01c557692289b976b7344a94066ca02d" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-64e3c4b818cc56636fca6383a53dcfa0" class="toggle" checked />
+    <label for="section-64e3c4b818cc56636fca6383a53dcfa0" class="flex justify-between">
+      <a href="/docs/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/master/" class="active">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/argo/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/operate/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务，kubernetes的内部流程</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7004701dca31b29ee01e7cd8557820e0" class="toggle"  />
+    <label for="section-7004701dca31b29ee01e7cd8557820e0" class="flex justify-between">
+      <a href="/docs/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/kubernetes/develop/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务，kubernetes的内部流程</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b76e269c41b1cb614c05366ddc37058b" class="toggle"  />
+    <label for="section-b76e269c41b1cb614c05366ddc37058b" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/first/" class="">First</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>kubernetes</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#部署前准备">部署前准备</a></li>
+    <li><a href="#master">master</a></li>
+    <li><a href="#node">node</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h2 id="部署前准备">
+  部署前准备
+  <a class="anchor" href="#%e9%83%a8%e7%bd%b2%e5%89%8d%e5%87%86%e5%a4%87">#</a>
+</h2>
+<ol>
+<li>修改机器名</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>hostnamectl set-hostname master
+</span></span></code></pre></div><ol start="2">
+<li>关闭swap</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>swapoff -a
+</span></span><span style="display:flex;"><span>sed -i <span style="color:#e6db74">&#39;/swap / s/^\(.*\)$/#\1/g&#39;</span> /etc/fstab
+</span></span><span style="display:flex;"><span>free -m <span style="color:#75715e"># 检查是否关闭swap</span>
+</span></span></code></pre></div><ol start="3">
+<li>ssh允许Root 登陆</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>vim /etc/ssh/sshd_config
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>增加
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>Port <span style="color:#ae81ff">22</span>
+</span></span><span style="display:flex;"><span>PermitRootLogin yes
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>passwd <span style="color:#75715e"># 设置root 密码</span>
+</span></span></code></pre></div><ol start="4">
+<li>关闭防火墙</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>sudo ufw disable
+</span></span></code></pre></div><ol start="5">
+<li>修改apt 源地址</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>cp /etc/apt/sources.list /etc/apt/sources.list.bak
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 使用vim 替换/etc/apt/sources.list中的资源地址</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>vim /etc/apt/sources.list
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>deb http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+</span></span><span style="display:flex;"><span>deb-src http://mirrors.aliyun.com/ubuntu/ focal main restricted universe multiverse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>deb http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+</span></span><span style="display:flex;"><span>deb-src http://mirrors.aliyun.com/ubuntu/ focal-security main restricted universe multiverse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>deb http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+</span></span><span style="display:flex;"><span>deb-src http://mirrors.aliyun.com/ubuntu/ focal-updates main restricted universe multiverse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>deb http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+</span></span><span style="display:flex;"><span>deb-src http://mirrors.aliyun.com/ubuntu/ focal-proposed main restricted universe multiverse
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>deb http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse
+</span></span><span style="display:flex;"><span>deb-src http://mirrors.aliyun.com/ubuntu/ focal-backports main restricted universe multiverse
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 更新</span>
+</span></span><span style="display:flex;"><span>vim /etc/resolv.conf
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 添加一下两行</span>
+</span></span><span style="display:flex;"><span>nameserver 8.8.8.8
+</span></span><span style="display:flex;"><span>nameserver 8.8.4.4
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>apt-get update
+</span></span></code></pre></div><ol start="6">
+<li>添加 Kubernetes apt 存储库</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>sudo tee /etc/apt/sources.list.d/kubernetes.list <span style="color:#e6db74">&lt;&lt;-&#39;EOF&#39;
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">deb https://mirrors.aliyun.com/kubernetes/apt kubernetes-xenial main
+</span></span></span><span style="display:flex;"><span><span style="color:#e6db74">EOF</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>apt-get update
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>The following signatures couldn<span style="color:#960050;background-color:#1e0010">&#39;</span>t be verified because the public key is not available: NO_PUBKEY B53DC80D13EDEF05 NO_PUBKEY FEEA9169307EA071
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 如果报错以上错误，执行下面一条命令 recv-keys 是报错现实的NO_PUBKEY </span>
+</span></span><span style="display:flex;"><span>sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys FEEA9169307EA071
+</span></span></code></pre></div><ol start="7">
+<li>安装kubectl kubeadm kubelet</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>sudo apt-get install -y kubelet<span style="color:#f92672">=</span>1.22.2-00 kubeadm<span style="color:#f92672">=</span>1.22.2-00 kubectl<span style="color:#f92672">=</span>1.22.2-00
+</span></span></code></pre></div><ol start="8">
+<li>安装docker</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>apt-get install -y docker.io
+</span></span><span style="display:flex;"><span>systemctl enable docker
+</span></span></code></pre></div><h2 id="master">
+  master
+  <a class="anchor" href="#master">#</a>
+</h2>
+<ol>
+<li>安装master 节点</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>kubeadm init <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>--apiserver-advertise-address<span style="color:#f92672">=</span>192.168.31.239 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>--image-repository registry.aliyuncs.com/google_containers <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>--kubernetes-version v1.22.0 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>--service-cidr<span style="color:#f92672">=</span>10.96.0.0/12 <span style="color:#ae81ff">\
+</span></span></span><span style="display:flex;"><span><span style="color:#ae81ff"></span>--pod-network-cidr<span style="color:#f92672">=</span>10.244.0.0/16
+</span></span></code></pre></div><h2 id="node">
+  node
+  <a class="anchor" href="#node">#</a>
+</h2>
+<ol>
+<li>安装node 节点</li>
+</ol>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-shell" data-lang="shell"><span style="display:flex;"><span>kubeadm join 192.168.31.208:6443 --token u1soc8.1xyeqbzptpvvjz8f     --discovery-token-ca-cert-hash sha256:3406b992b2c05f27b398a81375082a72aa2a823fd82616e4f8cb6f2a24370bb3
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># kubeadm init 初始化完成会打印到console 上</span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># 可以通过 kubeadm token create --print-join-command 查看</span>
+</span></span></code></pre></div></article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#部署前准备">部署前准备</a></li>
+    <li><a href="#master">master</a></li>
+    <li><a href="#node">node</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

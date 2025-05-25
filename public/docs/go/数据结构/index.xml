@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>数据结构 on bei的个人博客</title>
+    <link>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/</link>
+    <description>Recent content in 数据结构 on bei的个人博客</description>
+    <generator>Hugo</generator>
+    <language>zh-cn</language>
+    <atom:link href="http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/</guid>
+      <description>&lt;h1 id=&#34;go逃逸分析escape-analysis详解&#34;&gt;&#xA;  Go 逃逸分析（Escape Analysis）详解&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#go%e9%80%83%e9%80%b8%e5%88%86%e6%9e%90escape-analysis%e8%af%a6%e8%a7%a3&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;核心结论&lt;/strong&gt;：逃逸分析发生在 &lt;strong&gt;编译期&lt;/strong&gt;，用于判断一个变量在函数调用链上是否可能“逃出”其栈帧——一旦逃逸，就必须分配到堆上并受垃圾回收管理；否则可在栈上分配，生命周期随栈帧自动结束。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/</guid>
+      <description>&lt;h1 id=&#34;go垃圾回收gc工作原理全景&#34;&gt;&#xA;  Go 垃圾回收（GC）工作原理全景&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#go%e5%9e%83%e5%9c%be%e5%9b%9e%e6%94%b6gc%e5%b7%a5%e4%bd%9c%e5%8e%9f%e7%90%86%e5%85%a8%e6%99%af&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;适用版本&lt;/strong&gt;：Go 1.22；从 1.5 并发三色标记‐清扫奠基，后续演进始终保持总体框架不变。&lt;br&gt;&#xA;&lt;strong&gt;关键词&lt;/strong&gt;：并发三色、写屏障、Mutator Assist、Scavenger、STW 压缩、Soft Memory Limit。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title></title>
+      <link>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      <guid>http://localhost:1313/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/</guid>
+      <description>&lt;h1 id=&#34;go运行时调度gpm模型全解&#34;&gt;&#xA;  Go 运行时调度：G‑P‑M 模型全解&#xA;  &lt;a class=&#34;anchor&#34; href=&#34;#go%e8%bf%90%e8%a1%8c%e6%97%b6%e8%b0%83%e5%ba%a6gpm%e6%a8%a1%e5%9e%8b%e5%85%a8%e8%a7%a3&#34;&gt;#&lt;/a&gt;&#xA;&lt;/h1&gt;&#xA;&lt;blockquote&gt;&#xA;&lt;p&gt;&lt;strong&gt;适用版本&lt;/strong&gt;：Go 1.22（设计自 1.2 奠基，1.14 搭配异步抢占形成当前形态）&lt;br&gt;&#xA;&lt;strong&gt;核心概念&lt;/strong&gt;：Goroutine (&lt;code&gt;G&lt;/code&gt;)、Processor (&lt;code&gt;P&lt;/code&gt;)、Machine (&lt;code&gt;M&lt;/code&gt;)&lt;br&gt;&#xA;&lt;strong&gt;关键词&lt;/strong&gt;：Work‑stealing、Run Queue、Syscall Block、Netpoll、Async Preempt&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
