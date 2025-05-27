@@ -1,7 +1,7 @@
 ###############################################################################
 # 1️⃣ Build Stage —— 使用 Hugo 生成 static site                               #
 ###############################################################################
-FROM klakegg/hugo:0.125.4-ext-alpine AS builder
+FROM hugomods/hugo:reg-ci-0.145.0 AS builder
 
 # 项目根目录（与 config.toml / hugo.toml 同级）
 WORKDIR /src
