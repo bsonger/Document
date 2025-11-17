@@ -19,7 +19,7 @@ RUN hugo --baseURL "${HUGO_BASEURL}" --gc --minify
 ###############################################################################
 # 2️⃣ Runtime Stage —— 使用 NGINX 提供静态文件                               #
 ###############################################################################
-FROM nginx:1.25-alpine
+FROM docker.io/nginx:1.25-alpine
 
 # 清空 NGINX 默认文件
 RUN rm -rf /usr/share/nginx/html/*
