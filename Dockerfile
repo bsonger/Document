@@ -6,7 +6,7 @@ ARG HUGO_BASEURL=/
 RUN hugo --baseURL "${HUGO_BASEURL}" --gc --minify
 
 ### Serve with Caddy
-FROM caddy:2-alpine
+FROM docker.io/caddy:2-alpine
 COPY --from=builder /src/public /usr/share/caddy/
 EXPOSE 8080
 CMD ["caddy", "file-server", "--root", "/usr/share/caddy", "--listen", ":8080"]
