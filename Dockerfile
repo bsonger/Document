@@ -28,10 +28,10 @@ RUN rm -rf /usr/share/nginx/html/*
 COPY --from=builder /src/public /usr/share/nginx/html
 
 # 如需自定义 NGINX 配置，取消注释下一行并提供 nginx.conf
-# COPY nginx.conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 
 # 暴露 80 端口
-EXPOSE 80
+EXPOSE 8080
 STOPSIGNAL SIGTERM
 
 # 健康检查：每 30 秒访问一次首页
