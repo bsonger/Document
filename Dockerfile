@@ -11,7 +11,7 @@ COPY . .
 
 # 允许通过 --build-arg 设置站点 baseURL
 ARG HUGO_BASEURL=/
-ENV HUGO_BASEURL=${HUGO_BASEURL}
+ENV HUGO_BASEURL="http://document.bei.com:30000/docs/"
 
 # 生成 public/ 目录（--gc 清理无用文件，--minify 压缩）
 RUN hugo --baseURL "${HUGO_BASEURL}" --gc --minify
