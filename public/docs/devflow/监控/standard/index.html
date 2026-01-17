@@ -1,0 +1,2851 @@
+<!DOCTYPE html>
+<html lang="zh-cn" dir="ltr">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="
+  Observability Standard
+  #
+
+本文档定义了 Metric / Log / Trace 在 Observability 系统中的标准 Labels / Attributes，用于统一收集、查询和关联数据。
+
+
+  1. 服务相关 Attributes (公共)
+  #
+
+
+  
+      
+          Key
+          类型
+          说明
+          示例
+          适用类型
+      
+  
+  
+      
+          service.name
+          string
+          服务名称
+          devflow
+          Metric / Log / Trace
+      
+      
+          service.version
+          string
+          服务版本
+          v1.2.3
+          Metric / Log / Trace
+      
+      
+          service.instance.id
+          string
+          服务实例 ID 或 Pod 名称
+          devflow-abc123
+          Metric / Log / Trace
+      
+      
+          service.namespace
+          string
+          服务命名空间
+          production
+          Metric / Log / Trace
+      
+      
+          deployment.environment
+          string
+          部署环境
+          prod / staging / dev
+          Metric / Log / Trace
+      
+  
+
+
+
+  2. Kubernetes 相关 Attributes (公共)
+  #
+
+
+  
+      
+          Key
+          类型
+          说明
+          示例
+          适用类型
+      
+  
+  
+      
+          k8s.cluster.name
+          string
+          集群名称
+          cluster-prod
+          Metric / Log / Trace
+      
+      
+          k8s.namespace.name
+          string
+          Pod 所在命名空间
+          applications
+          Metric / Log / Trace
+      
+      
+          k8s.pod.name
+          string
+          Pod 名称
+          devflow-12345
+          Metric / Log / Trace
+      
+      
+          k8s.container.name
+          string
+          容器名称
+          devflow
+          Metric / Log / Trace
+      
+      
+          k8s.node.name
+          string
+          节点名称
+          node-01
+          Metric / Log / Trace
+      
+  
+
+
+
+  3. Metric / Trace / Log 公共 Attributes
+  #
+
+
+  
+      
+          Key
+          类型
+          说明
+          示例
+          适用类型
+      
+  
+  
+      
+          trace_id
+          string
+          Trace ID，用于关联 Trace / Log / Metric
+          2e71abb92e031efc2a7a1c4280959f4b
+          Trace / Log
+      
+      
+          http.method
+          string
+          HTTP 方法
+          GET
+          Metric / Trace / Log
+      
+      
+          http.route
+          string
+          路由模板
+          /users/:id
+          Metric / Trace / Log
+      
+      
+          http.status_code
+          int
+          HTTP 状态码
+          200
+          Metric / Trace / Log
+      
+      
+          http.server.duration
+          duration
+          请求耗时
+          120ms
+          Metric / Trace / Log
+      
+  
+
+
+
+  4. Trace / Log 特有 Attributes
+  #
+
+
+  
+      
+          Key
+          类型
+          说明
+          示例
+          适用类型
+      
+  
+  
+      
+          span_id
+          string
+          Span ID，仅 Trace 使用
+          abc123def456
+          Trace
+      
+      
+          parent_span_id
+          string
+          父 Span ID，仅 Trace 使用
+          xyz789ghi012
+          Trace
+      
+      
+          error.message
+          string
+          错误信息（如有）
+          database timeout
+          Trace / Log
+      
+      
+          client.ip
+          string
+          客户端 IP 地址
+          10.0.0.1
+          Trace / Log
+      
+      
+          user_agent.original
+          string
+          User-Agent
+          curl/7.68.0
+          Trace / Log
+      
+  
+
+
+
+  5. Metric 特有 Attributes
+  #
+
+
+  
+      
+          Key
+          类型
+          说明
+          示例
+      
+  
+  
+      
+          metric.name
+          string
+          指标名称
+          http_request_duration_seconds
+      
+      
+          metric.unit
+          string
+          单位
+          ms / requests
+      
+      
+          metric.type
+          string
+          类型
+          gauge / counter / histogram
+      
+  
+
+
+注意：HTTP 字段 (http.method / http.route / http.status_code / http.server.duration) 可作为 Metric Label 使用，方便拆分指标。">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#343a40">
+<meta name="color-scheme" content="light dark"><meta property="og:url" content="http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/standard/">
+  <meta property="og:site_name" content="bei的个人博客">
+  <meta property="og:title" content="bei的个人博客">
+  <meta property="og:description" content="Observability Standard # 本文档定义了 Metric / Log / Trace 在 Observability 系统中的标准 Labels / Attributes，用于统一收集、查询和关联数据。
+1. 服务相关 Attributes (公共) # Key 类型 说明 示例 适用类型 service.name string 服务名称 devflow Metric / Log / Trace service.version string 服务版本 v1.2.3 Metric / Log / Trace service.instance.id string 服务实例 ID 或 Pod 名称 devflow-abc123 Metric / Log / Trace service.namespace string 服务命名空间 production Metric / Log / Trace deployment.environment string 部署环境 prod / staging / dev Metric / Log / Trace 2. Kubernetes 相关 Attributes (公共) # Key 类型 说明 示例 适用类型 k8s.cluster.name string 集群名称 cluster-prod Metric / Log / Trace k8s.namespace.name string Pod 所在命名空间 applications Metric / Log / Trace k8s.pod.name string Pod 名称 devflow-12345 Metric / Log / Trace k8s.container.name string 容器名称 devflow Metric / Log / Trace k8s.node.name string 节点名称 node-01 Metric / Log / Trace 3. Metric / Trace / Log 公共 Attributes # Key 类型 说明 示例 适用类型 trace_id string Trace ID，用于关联 Trace / Log / Metric 2e71abb92e031efc2a7a1c4280959f4b Trace / Log http.method string HTTP 方法 GET Metric / Trace / Log http.route string 路由模板 /users/:id Metric / Trace / Log http.status_code int HTTP 状态码 200 Metric / Trace / Log http.server.duration duration 请求耗时 120ms Metric / Trace / Log 4. Trace / Log 特有 Attributes # Key 类型 说明 示例 适用类型 span_id string Span ID，仅 Trace 使用 abc123def456 Trace parent_span_id string 父 Span ID，仅 Trace 使用 xyz789ghi012 Trace error.message string 错误信息（如有） database timeout Trace / Log client.ip string 客户端 IP 地址 10.0.0.1 Trace / Log user_agent.original string User-Agent curl/7.68.0 Trace / Log 5. Metric 特有 Attributes # Key 类型 说明 示例 metric.name string 指标名称 http_request_duration_seconds metric.unit string 单位 ms / requests metric.type string 类型 gauge / counter / histogram 注意：HTTP 字段 (http.method / http.route / http.status_code / http.server.duration) 可作为 Metric Label 使用，方便拆分指标。">
+  <meta property="og:locale" content="zh_cn">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="docs">
+<title>Standard | bei的个人博客</title>
+<link rel="icon" href="/favicon.png" >
+<link rel="manifest" href="/manifest.json">
+<link rel="canonical" href="http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/standard/">
+<link rel="stylesheet" href="/book.min.18fd500185740e3e6696d5a1b3cf660d09f95f57a742689eccc24f69ea57449b.css" integrity="sha256-GP1QAYV0Dj5mltWhs89mDQn5X1enQmiezMJPaepXRJs=" crossorigin="anonymous">
+  <script defer src="/fuse.min.js"></script>
+  <script defer src="/zh.search.min.ffd4956b1687b5bf1a65cd49658abf24863fd0d6ee5cf4e617edda813201891b.js" integrity="sha256-/9SVaxaHtb8aZc1JZYq/JIY/0NbuXPTmF&#43;3agTIBiRs=" crossorigin="anonymous"></script>
+
+  <script defer src="/sw.min.6f6f90fcb8eb1c49ec389838e6b801d0de19430b8e516902f8d75c3c8bd98739.js" integrity="sha256-b2&#43;Q/LjrHEnsOJg45rgB0N4ZQwuOUWkC&#43;NdcPIvZhzk=" crossorigin="anonymous"></script>
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+  
+</head>
+<body dir="ltr">
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      <div class="book-menu-content">
+        
+  <nav>
+<h2 class="book-brand">
+  <a class="flex align-center" href="/"><span>bei的个人博客</span>
+  </a>
+</h2>
+
+
+<div class="book-search hidden">
+  <input type="text" id="book-search-input" placeholder="搜索" aria-label="搜索" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+<script>document.querySelector(".book-search").classList.remove("hidden")</script>
+
+
+
+
+<div class="custom-book-menu"><ul>
+</ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e05fad7578bc4a887ef7c5fbb78d181b" class="toggle"  />
+    <label for="section-e05fad7578bc4a887ef7c5fbb78d181b" class="flex justify-between">
+      <a href="/docs/go/" class="">Go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b7edc7ecdde8f55a2ff90e8c02511732" class="toggle"  />
+    <label for="section-b7edc7ecdde8f55a2ff90e8c02511732" class="flex justify-between">
+      <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/" class="">性能测试</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/" class="">benchmark</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/pprof_analysis/" class="">Pprof Analysis</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-ce8b76e47e867072d9dacd0c7eb3e62d" class="toggle"  />
+    <label for="section-ce8b76e47e867072d9dacd0c7eb3e62d" class="flex justify-between">
+      <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/" class="">数据结构</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_escape_analysis/" class="">Go Escape Analysis</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gc_overview/" class="">Go Gc Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84/go_gmp_model/" class="">Go Gmp Model</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-83ae20dc318962af0f1f2e5dc14091c3" class="toggle"  />
+    <label for="section-83ae20dc318962af0f1f2e5dc14091c3" class="flex justify-between">
+      <a href="/docs/go/sync/" class="">sync</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_cond_guide/" class="">Sync Cond Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_once_guide/" class="">Sync Once Guide</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/go/sync/sync_pool_guide/" class="">Sync Pool Guide</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d358833dc760de910b4449be11440cde" class="toggle"  />
+    <label for="section-d358833dc760de910b4449be11440cde" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/" class="">Cloud Native</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-442e46562bfe1e63339b4911e5c6e1c7" class="toggle"  />
+    <label for="section-442e46562bfe1e63339b4911e5c6e1c7" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/" class="">Kubernetes</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3b215c507fe41b0e72e496e3b052c488" class="toggle"  />
+    <label for="section-3b215c507fe41b0e72e496e3b052c488" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/" class="">resources</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/questions/" class="">Questions</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-063120ae632f18af2d264c7f4554137d" class="toggle"  />
+    <label for="section-063120ae632f18af2d264c7f4554137d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/" class="">client-go</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8d1f353fa4007ddc0b886bf565f2ddaa" class="toggle"  />
+    <label for="section-8d1f353fa4007ddc0b886bf565f2ddaa" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/" class="">informer</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/" class="">DeltaFIFO</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/indexr/" class="">Indexer</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/" class="">Resync</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-08ba86b17be050bc56212ecfafe18191" class="toggle"  />
+    <label for="section-08ba86b17be050bc56212ecfafe18191" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/controller-runtime/" class="">controller runtime</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-97ab93da0a9c56b605a9acd875cd1b41" class="toggle"  />
+    <label for="section-97ab93da0a9c56b605a9acd875cd1b41" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/" class="">operate</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e18b2b838e646ca32ad0540508876200" class="toggle"  />
+    <label for="section-e18b2b838e646ca32ad0540508876200" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/kubernetes/" class="">kubernetes</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/calico/" class="">calico</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/argo/" class="">argo</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/" class="">如何创建kubeConfig</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1b2b9f8254b718b98080378413a42ff3" class="toggle"  />
+    <label for="section-1b2b9f8254b718b98080378413a42ff3" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/" class="">CRI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c9f30964f30c510f1bacffb363b5cce2" class="toggle"  />
+    <label for="section-c9f30964f30c510f1bacffb363b5cce2" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/containerd/" class="">containerd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8b63aab175d57708dff5d6acd9da0480" class="toggle"  />
+    <label for="section-8b63aab175d57708dff5d6acd9da0480" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/" class="">CNI</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-ec9f6c5787cbc2597ff91dea15bdda26" class="toggle"  />
+    <label for="section-ec9f6c5787cbc2597ff91dea15bdda26" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cni/cilium/" class="">cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-de990b475d298f6a9fdca21e8e20c720" class="toggle"  />
+    <label for="section-de990b475d298f6a9fdca21e8e20c720" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E5%88%9B%E5%BB%BA%E4%B8%80%E4%B8%AA%E6%97%A0%E7%8A%B6%E6%80%81%E6%9C%8D%E5%8A%A1kubernetes%E7%9A%84%E5%86%85%E9%83%A8%E6%B5%81%E7%A8%8B/" class="">创建一个无状态服务</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-eed3fb3da7b186e505ab6ffeea31b854" class="toggle"  />
+    <label for="section-eed3fb3da7b186e505ab6ffeea31b854" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/" class="">Cilium</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-45c8cde629aea5c4bb41d995bc8d9427" class="toggle"  />
+    <label for="section-45c8cde629aea5c4bb41d995bc8d9427" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/" class="">CertManager</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/certmanager/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b1f4c2b67047eda2dc588ce5e0cb2a1d" class="toggle"  />
+    <label for="section-b1f4c2b67047eda2dc588ce5e0cb2a1d" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/" class="">Keycloak</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/keycloak/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1fbd28644bf3a29a8c22a76aff297f43" class="toggle"  />
+    <label for="section-1fbd28644bf3a29a8c22a76aff297f43" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/" class="">Harbor</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/install/" class="">Install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/harbor/introduce/" class="">Introduce</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-fa0a17f5d584572e3d99df27e087bbbd" class="toggle"  />
+    <label for="section-fa0a17f5d584572e3d99df27e087bbbd" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/" class="">Argo</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e2b58ab762cfff9d01ba77887a56e559" class="toggle"  />
+    <label for="section-e2b58ab762cfff9d01ba77887a56e559" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/" class="">argo workflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/" class="">plan</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-0d8335ff8da228f91815740be3f0068b" class="toggle"  />
+    <label for="section-0d8335ff8da228f91815740be3f0068b" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/" class="">argo cd</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/configuration/" class="">configuration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-802d4840e36643350e137e5694fc2369" class="toggle"  />
+    <label for="section-802d4840e36643350e137e5694fc2369" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/" class="">argo rollout</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-rollout/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-78918939096860a3d7e8ad8cc24350cc" class="toggle"  />
+    <label for="section-78918939096860a3d7e8ad8cc24350cc" class="flex justify-between">
+      <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/" class="">argo event</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/example/" class="">Example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo_e2e_flow_full/" class="">e2e_flow_full</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-eb700c57a93760d3913c8fc97976610c" class="toggle"  />
+    <label for="section-eb700c57a93760d3913c8fc97976610c" class="flex justify-between">
+      <a role="button" class="">Istio</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4ae57ad83c4cd106b4b7bf6245d288fd" class="toggle"  />
+    <label for="section-4ae57ad83c4cd106b4b7bf6245d288fd" class="flex justify-between">
+      <a role="button" class="">Tekton</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_architecture/" class="">Tekton Architecture</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_ci_template/" class="">Tekton Ci Template</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/tekton_installation/" class="">Tekton Installation</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-15de89020e5925bea29f2e4ba749424f" class="toggle"  />
+    <label for="section-15de89020e5925bea29f2e4ba749424f" class="flex justify-between">
+      <a role="button" class="">Backstage</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/introduce/" class="">introduce</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/install/" class="">install</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/backstage/example/" class="">example</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f326d6fac2e36f9d63f8c3dfacf250c2" class="toggle"  />
+    <label for="section-f326d6fac2e36f9d63f8c3dfacf250c2" class="flex justify-between">
+      <a role="button" class="">OpenTelemetry</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/helm-install-postgresql/" class="">Helm Install Postgresql</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7752f8ab7f6a373c51b1cb32354fbd31" class="toggle" checked />
+    <label for="section-7752f8ab7f6a373c51b1cb32354fbd31" class="flex justify-between">
+      <a href="/docs/devflow/" class="">devflow</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f08b4f0a175a93509144fb33a881a59b" class="toggle" checked />
+    <label for="section-f08b4f0a175a93509144fb33a881a59b" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/" class="">监控</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-bb88ede88eba230c625bd3f786a3fb7b" class="toggle"  />
+    <label for="section-bb88ede88eba230c625bd3f786a3fb7b" class="flex justify-between">
+      <a role="button" class="">metrics</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-e7518efae7ce653fbbfe58720abfd7bc" class="toggle"  />
+    <label for="section-e7518efae7ce653fbbfe58720abfd7bc" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/" class="">prometheus</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-d66efbe532203764e559ad7ca4f47199" class="toggle"  />
+    <label for="section-d66efbe532203764e559ad7ca4f47199" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/" class="">develop</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3a28d180376bba5dedcf4d42719c0d9d" class="toggle"  />
+    <label for="section-3a28d180376bba5dedcf4d42719c0d9d" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/" class="">prometheus source code</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-3721109060847683262741a6dc6385f4" class="toggle"  />
+    <label for="section-3721109060847683262741a6dc6385f4" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/" class="">operator</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-1933390996d57954ad62f961aa3d9c25" class="toggle"  />
+    <label for="section-1933390996d57954ad62f961aa3d9c25" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/" class="">install</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/" class="">kubernetes service</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/" class="">prometheus</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-b2aa24ca9084c9a493b4ecb1d84f9212" class="toggle"  />
+    <label for="section-b2aa24ca9084c9a493b4ecb1d84f9212" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/" class="">questions</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/" class="">01</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6561e41296435a9c3edc980dd27479f8" class="toggle"  />
+    <label for="section-6561e41296435a9c3edc980dd27479f8" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/thanos/" class="">thanos</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-4b0b0bddee45912a80836ba43bbb7cb2" class="toggle"  />
+    <label for="section-4b0b0bddee45912a80836ba43bbb7cb2" class="flex justify-between">
+      <a role="button" class="">log</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c8f84802e975fbbc3fcf6056145c0836" class="toggle"  />
+    <label for="section-c8f84802e975fbbc3fcf6056145c0836" class="flex justify-between">
+      <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/trace/" class="">trace</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/devflow/%E7%9B%91%E6%8E%A7/standard/" class="active">Standard</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-f0d729455c3e1a1b5cf55f66731fd9e3" class="toggle"  />
+    <label for="section-f0d729455c3e1a1b5cf55f66731fd9e3" class="flex justify-between">
+      <a role="button" class="">linux</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-a955d50426a7159cf5ef2cff901fa8b0" class="toggle"  />
+    <label for="section-a955d50426a7159cf5ef2cff901fa8b0" class="flex justify-between">
+      <a role="button" class="">kernel</a>
+    </label>
+  
+
+          
+  <ul>
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-79e94f485effdd66c2a712a759506805" class="toggle"  />
+    <label for="section-79e94f485effdd66c2a712a759506805" class="flex justify-between">
+      <a href="/docs/linux/%E7%BD%91%E7%BB%9C/" class="">网络</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/linux/%E7%BD%91%E7%BB%9C/tcp%E5%8D%8F%E8%AE%AE/" class="">tcp 协议</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-27c06b247213322baea3fcfffda2f3a0" class="toggle"  />
+    <label for="section-27c06b247213322baea3fcfffda2f3a0" class="flex justify-between">
+      <a role="button" class="">算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-75e4759f9257d46065c28be9d6acb63b" class="toggle"  />
+    <label for="section-75e4759f9257d46065c28be9d6acb63b" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/" class="">贪心算法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E8%B4%AA%E5%BF%83%E7%AE%97%E6%B3%95/first/" class="">跳跃游戏 2</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-6b2e294da98e3a6f00e75183972b8bca" class="toggle"  />
+    <label for="section-6b2e294da98e3a6f00e75183972b8bca" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/" class="">动态规划</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/1.-%E6%9C%80%E9%95%BF%E5%85%AC%E5%85%B1%E5%AD%90%E5%BA%8F%E5%88%97/" class="">最长公共子序列</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-c4dd8a5049d3896a02073afd79464587" class="toggle"  />
+    <label for="section-c4dd8a5049d3896a02073afd79464587" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/" class="">回溯</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/" class="">N 皇后</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-64a542b23393ff89a201d41645b28e76" class="toggle"  />
+    <label for="section-64a542b23393ff89a201d41645b28e76" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/" class="">双指针</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%8F%8C%E6%8C%87%E9%92%88/1.%E6%8E%A5%E9%9B%A8%E6%B0%B4/" class="">接雨水</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-84cfaa0210fa4e72b8fc0a5931b27126" class="toggle"  />
+    <label for="section-84cfaa0210fa4e72b8fc0a5931b27126" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/" class="">堆</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%A0%86/1.-%E6%95%B0%E6%8D%AE%E6%B5%81%E7%9A%84%E4%B8%AD%E4%BD%8D%E6%95%B0/" class="">数据流的中位数</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-7949d967e3802b2b80292cdee5dd0d52" class="toggle"  />
+    <label for="section-7949d967e3802b2b80292cdee5dd0d52" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/" class="">拓扑排序</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/1.-%E8%85%90%E7%83%82%E7%9A%84%E6%A9%98%E5%AD%90/" class="">腐烂的橘子</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-98d2553c3ad929b905e1be88fb3bf923" class="toggle"  />
+    <label for="section-98d2553c3ad929b905e1be88fb3bf923" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/" class="">分治法</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E5%88%86%E6%B2%BB%E6%B3%95/1.-%E5%AF%BB%E6%89%BE%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84%E4%B8%AD%E7%9A%84%E6%9C%80%E5%B0%8F%E5%80%BC/" class="">寻找旋转排序数组中的最小值</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <input type="checkbox" id="section-8124e01d48a0c4de2271a4eefa435262" class="toggle"  />
+    <label for="section-8124e01d48a0c4de2271a4eefa435262" class="flex justify-between">
+      <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/" class="">二叉树</a>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/1.-%E5%89%8D%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">前序遍历</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+    <a href="/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/2.-%E4%B8%AD%E5%BA%8F%E9%81%8D%E5%8E%86/" class="">中序遍历</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var e=document.querySelector("aside .book-menu-content");addEventListener("beforeunload",function(){localStorage.setItem("menu.scrollTop",e.scrollTop)}),e.scrollTop=localStorage.getItem("menu.scrollTop")})()</script>
+
+
+ 
+      </div>
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <h3>Standard</h3>
+
+  <label for="toc-control">
+    
+    <img src="/svg/toc.svg" class="book-icon" alt="Table of Contents" />
+    
+  </label>
+</div>
+
+
+  
+  <aside class="hidden clearfix">
+    
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-服务相关-attributes-公共">1. 服务相关 Attributes (公共)</a></li>
+    <li><a href="#2-kubernetes-相关-attributes-公共">2. Kubernetes 相关 Attributes (公共)</a></li>
+    <li><a href="#3-metric--trace--log-公共-attributes">3. Metric / Trace / Log 公共 Attributes</a></li>
+    <li><a href="#4-trace--log-特有-attributes">4. Trace / Log 特有 Attributes</a></li>
+    <li><a href="#5-metric-特有-attributes">5. Metric 特有 Attributes</a></li>
+    <li><a href="#6-log-特有-attributes">6. Log 特有 Attributes</a></li>
+    <li><a href="#7-trace-特有-attributes">7. Trace 特有 Attributes</a></li>
+    <li><a href="#8-统一规范">8. 统一规范</a></li>
+  </ul>
+</nav>
+
+
+
+  </aside>
+  
+ 
+      </header>
+
+      
+      
+  <article class="markdown book-article"><h1 id="observability-standard">
+  Observability Standard
+  <a class="anchor" href="#observability-standard">#</a>
+</h1>
+<p>本文档定义了 <strong>Metric / Log / Trace</strong> 在 Observability 系统中的标准 Labels / Attributes，用于统一收集、查询和关联数据。</p>
+<hr>
+<h2 id="1-服务相关-attributes-公共">
+  1. 服务相关 Attributes (公共)
+  <a class="anchor" href="#1-%e6%9c%8d%e5%8a%a1%e7%9b%b8%e5%85%b3-attributes-%e5%85%ac%e5%85%b1">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+          <th>适用类型</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>service.name</code></td>
+          <td>string</td>
+          <td>服务名称</td>
+          <td><code>devflow</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>service.version</code></td>
+          <td>string</td>
+          <td>服务版本</td>
+          <td><code>v1.2.3</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>service.instance.id</code></td>
+          <td>string</td>
+          <td>服务实例 ID 或 Pod 名称</td>
+          <td><code>devflow-abc123</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>service.namespace</code></td>
+          <td>string</td>
+          <td>服务命名空间</td>
+          <td><code>production</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>deployment.environment</code></td>
+          <td>string</td>
+          <td>部署环境</td>
+          <td><code>prod</code> / <code>staging</code> / <code>dev</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="2-kubernetes-相关-attributes-公共">
+  2. Kubernetes 相关 Attributes (公共)
+  <a class="anchor" href="#2-kubernetes-%e7%9b%b8%e5%85%b3-attributes-%e5%85%ac%e5%85%b1">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+          <th>适用类型</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>k8s.cluster.name</code></td>
+          <td>string</td>
+          <td>集群名称</td>
+          <td><code>cluster-prod</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>k8s.namespace.name</code></td>
+          <td>string</td>
+          <td>Pod 所在命名空间</td>
+          <td><code>applications</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>k8s.pod.name</code></td>
+          <td>string</td>
+          <td>Pod 名称</td>
+          <td><code>devflow-12345</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>k8s.container.name</code></td>
+          <td>string</td>
+          <td>容器名称</td>
+          <td><code>devflow</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+      <tr>
+          <td><code>k8s.node.name</code></td>
+          <td>string</td>
+          <td>节点名称</td>
+          <td><code>node-01</code></td>
+          <td>Metric / Log / Trace</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="3-metric--trace--log-公共-attributes">
+  3. Metric / Trace / Log 公共 Attributes
+  <a class="anchor" href="#3-metric--trace--log-%e5%85%ac%e5%85%b1-attributes">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+          <th>适用类型</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>trace_id</code></td>
+          <td>string</td>
+          <td>Trace ID，用于关联 Trace / Log / Metric</td>
+          <td><code>2e71abb92e031efc2a7a1c4280959f4b</code></td>
+          <td>Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>http.method</code></td>
+          <td>string</td>
+          <td>HTTP 方法</td>
+          <td><code>GET</code></td>
+          <td>Metric / Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>http.route</code></td>
+          <td>string</td>
+          <td>路由模板</td>
+          <td><code>/users/:id</code></td>
+          <td>Metric / Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>http.status_code</code></td>
+          <td>int</td>
+          <td>HTTP 状态码</td>
+          <td><code>200</code></td>
+          <td>Metric / Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>http.server.duration</code></td>
+          <td>duration</td>
+          <td>请求耗时</td>
+          <td><code>120ms</code></td>
+          <td>Metric / Trace / Log</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="4-trace--log-特有-attributes">
+  4. Trace / Log 特有 Attributes
+  <a class="anchor" href="#4-trace--log-%e7%89%b9%e6%9c%89-attributes">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+          <th>适用类型</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>span_id</code></td>
+          <td>string</td>
+          <td>Span ID，仅 Trace 使用</td>
+          <td><code>abc123def456</code></td>
+          <td>Trace</td>
+      </tr>
+      <tr>
+          <td><code>parent_span_id</code></td>
+          <td>string</td>
+          <td>父 Span ID，仅 Trace 使用</td>
+          <td><code>xyz789ghi012</code></td>
+          <td>Trace</td>
+      </tr>
+      <tr>
+          <td><code>error.message</code></td>
+          <td>string</td>
+          <td>错误信息（如有）</td>
+          <td><code>database timeout</code></td>
+          <td>Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>client.ip</code></td>
+          <td>string</td>
+          <td>客户端 IP 地址</td>
+          <td><code>10.0.0.1</code></td>
+          <td>Trace / Log</td>
+      </tr>
+      <tr>
+          <td><code>user_agent.original</code></td>
+          <td>string</td>
+          <td>User-Agent</td>
+          <td><code>curl/7.68.0</code></td>
+          <td>Trace / Log</td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="5-metric-特有-attributes">
+  5. Metric 特有 Attributes
+  <a class="anchor" href="#5-metric-%e7%89%b9%e6%9c%89-attributes">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>metric.name</code></td>
+          <td>string</td>
+          <td>指标名称</td>
+          <td><code>http_request_duration_seconds</code></td>
+      </tr>
+      <tr>
+          <td><code>metric.unit</code></td>
+          <td>string</td>
+          <td>单位</td>
+          <td><code>ms</code> / <code>requests</code></td>
+      </tr>
+      <tr>
+          <td><code>metric.type</code></td>
+          <td>string</td>
+          <td>类型</td>
+          <td><code>gauge</code> / <code>counter</code> / <code>histogram</code></td>
+      </tr>
+  </tbody>
+</table>
+<blockquote>
+<p>注意：HTTP 字段 (<code>http.method</code> / <code>http.route</code> / <code>http.status_code</code> / <code>http.server.duration</code>) 可作为 Metric Label 使用，方便拆分指标。</p></blockquote>
+<hr>
+<h2 id="6-log-特有-attributes">
+  6. Log 特有 Attributes
+  <a class="anchor" href="#6-log-%e7%89%b9%e6%9c%89-attributes">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>log.level</code></td>
+          <td>string</td>
+          <td>日志级别</td>
+          <td><code>INFO</code> / <code>WARN</code> / <code>ERROR</code></td>
+      </tr>
+      <tr>
+          <td><code>log.logger</code></td>
+          <td>string</td>
+          <td>日志记录器名称</td>
+          <td><code>gin</code> / <code>otelzap</code></td>
+      </tr>
+      <tr>
+          <td><code>log.message</code></td>
+          <td>string</td>
+          <td>日志文本</td>
+          <td><code>http request completed</code></td>
+      </tr>
+      <tr>
+          <td><code>log.stacktrace</code></td>
+          <td>string</td>
+          <td>可选，错误堆栈</td>
+          <td><code>at main.go:45</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="7-trace-特有-attributes">
+  7. Trace 特有 Attributes
+  <a class="anchor" href="#7-trace-%e7%89%b9%e6%9c%89-attributes">#</a>
+</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Key</th>
+          <th>类型</th>
+          <th>说明</th>
+          <th>示例</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>span.name</code></td>
+          <td>string</td>
+          <td>Span 名称</td>
+          <td><code>Tekton.CreatePipelineRun</code></td>
+      </tr>
+      <tr>
+          <td><code>span.kind</code></td>
+          <td>string</td>
+          <td>Span 类型</td>
+          <td><code>server</code> / <code>client</code> / <code>producer</code> / <code>consumer</code></td>
+      </tr>
+      <tr>
+          <td><code>span.status</code></td>
+          <td>string</td>
+          <td>Span 状态</td>
+          <td><code>ok</code> / <code>error</code></td>
+      </tr>
+  </tbody>
+</table>
+<hr>
+<h2 id="8-统一规范">
+  8. 统一规范
+  <a class="anchor" href="#8-%e7%bb%9f%e4%b8%80%e8%a7%84%e8%8c%83">#</a>
+</h2>
+<ol>
+<li>
+<p><strong>同一请求生命周期</strong>内的 <strong>Metric / Log / Trace</strong> 应共享以下 Attributes：</p>
+<ul>
+<li><code>service.name</code></li>
+<li><code>service.version</code></li>
+<li><code>service.instance.id</code></li>
+<li><code>deployment.environment</code></li>
+<li><code>k8s.pod.name</code></li>
+<li><code>trace_id</code>（如果有 Trace）</li>
+</ul>
+</li>
+<li>
+<p><strong>命名规范</strong>：</p>
+<ul>
+<li>Attribute 使用 <strong>小写 + 点号分隔</strong> (<code>service.name</code>)</li>
+<li>Kubernetes 相关字段加前缀 <code>k8s.</code></li>
+<li>HTTP 相关字段加前缀 <code>http.</code></li>
+<li>日志相关字段加前缀 <code>log.</code></li>
+<li>Span 相关字段加前缀 <code>span.</code></li>
+</ul>
+</li>
+<li>
+<p><strong>来源要求</strong>：</p>
+<ul>
+<li>所有 Attribute 应来源于 <strong>环境变量</strong> 或 <strong>资源信息</strong>，避免硬编码。</li>
+</ul>
+</li>
+</ol>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  <div class="flex flex-wrap justify-between">
+
+
+
+
+
+</div>
+
+
+
+  <script>(function(){function e(e){const t=window.getSelection(),n=document.createRange();n.selectNodeContents(e),t.removeAllRanges(),t.addRange(n)}document.querySelectorAll("pre code").forEach(t=>{t.addEventListener("click",function(){if(window.getSelection().toString())return;e(t.parentElement),navigator.clipboard&&navigator.clipboard.writeText(t.parentElement.textContent)})})})()</script>
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+    <aside class="book-toc">
+      <div class="book-toc-content">
+        
+  
+<nav id="TableOfContents">
+  <ul>
+    <li><a href="#1-服务相关-attributes-公共">1. 服务相关 Attributes (公共)</a></li>
+    <li><a href="#2-kubernetes-相关-attributes-公共">2. Kubernetes 相关 Attributes (公共)</a></li>
+    <li><a href="#3-metric--trace--log-公共-attributes">3. Metric / Trace / Log 公共 Attributes</a></li>
+    <li><a href="#4-trace--log-特有-attributes">4. Trace / Log 特有 Attributes</a></li>
+    <li><a href="#5-metric-特有-attributes">5. Metric 特有 Attributes</a></li>
+    <li><a href="#6-log-特有-attributes">6. Log 特有 Attributes</a></li>
+    <li><a href="#7-trace-特有-attributes">7. Trace 特有 Attributes</a></li>
+    <li><a href="#8-统一规范">8. 统一规范</a></li>
+  </ul>
+</nav>
+
+
+ 
+      </div>
+    </aside>
+    
+  </main>
+
+  
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+

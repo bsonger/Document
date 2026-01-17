@@ -2,19 +2,19 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/01/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/go/%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90/golang-benchmark/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/deltafifo/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/go/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/</loc>
+    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/install/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-cd/introduce/</loc>
   </url><url>
@@ -22,23 +22,23 @@
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/kubernetes-services/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/1.-n-%E7%9A%87%E5%90%8E/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-workflow/plan/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/plan/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/operator/install/prometheus/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/develop/source-code/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/reources/</loc>
   </url><url>
@@ -102,11 +102,13 @@
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/cilium/introduce/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/log/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/log/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%8A%A8%E6%80%81%E8%A7%84%E5%88%92/</loc>
+  </url><url>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BAkubeconfig/</loc>
   </url><url>
@@ -126,6 +128,8 @@
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/operate/kubelet/cri/</loc>
   </url><url>
+    <loc>http://localhost:1313/docs/devflow/</loc>
+  </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/example/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/argo/argo-event/install/</loc>
@@ -144,19 +148,17 @@
   </url><url>
     <loc>http://localhost:1313/docs/linux/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/platfrom/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/questions/</loc>
-  </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/prometheus/questions/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/kubernetes/develop/client-go/informer/resync/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/go/sync/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/metrics/thanos/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/metrics/thanos/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/trace/</loc>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/trace/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E5%9B%9E%E6%BA%AF/</loc>
   </url><url>
@@ -196,8 +198,6 @@
   </url><url>
     <loc>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E6%8B%93%E6%89%91%E6%8E%92%E5%BA%8F/</loc>
   </url><url>
-    <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/%E7%9B%91%E6%8E%A7/</loc>
-  </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/istio/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/tekton/</loc>
@@ -209,6 +209,8 @@
     <loc>http://localhost:1313/docs/%E4%BA%91%E5%8E%9F%E7%94%9F/opentelemetry/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/%E7%AE%97%E6%B3%95/%E4%BA%8C%E5%8F%89%E6%A0%91/</loc>
+  </url><url>
+    <loc>http://localhost:1313/docs/devflow/%E7%9B%91%E6%8E%A7/standard/</loc>
   </url><url>
     <loc>http://localhost:1313/docs/go/sync/sync_cond_guide/</loc>
   </url><url>
