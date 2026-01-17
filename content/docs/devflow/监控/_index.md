@@ -51,16 +51,15 @@ bookCollapseSection: true
 ## Pyroscope (Profiling 系统)
 | Service | Description |
 |---------|-------------|
-| pyroscope-ad-hoc-profiles | 收集临时 profiling 数据，例如 CPU/内存采样。 |
-| pyroscope-alloy | 核心存储和处理节点，接收分布式采集器数据。 |
-| pyroscope-compactor | 压缩 profiling 数据块，优化存储。 |
-| pyroscope-distributor | 分发采集器发送的 profiling 数据，实现负载均衡。 |
-| pyroscope-ingester | 存储 profiling 数据，持久化到存储后端。 |
-| pyroscope-querier | 查询 profiling 数据，提供给前端或 API。 |
-| pyroscope-query-frontend | 查询前端，将请求路由到 querier。 |
-| pyroscope-query-scheduler | 调度查询请求，支持高并发。 |
-| pyroscope-store-gateway | 对外提供存储访问接口，用于 profiling 数据读取。 |
-| pyroscope-tenant-settings | 租户级配置管理，如采样率和权限配置。 |
+| pyroscope-ad-hoc-profiles | 收集临时 profiling 数据，例如 CPU/内存采样，用于临时调试。 |
+| pyroscope-admin | 管理后台，提供 Web UI 和 API，管理用户、Tenant、配置等。 |
+| pyroscope-compaction-worker | 压缩和合并原始 profiling 数据，提高存储和查询效率。 |
+| pyroscope-distributor | 接收 agent 发送的 profiling 数据，并分发到 segment writer 或 metastore。 |
+| pyroscope-metastore | 保存 profiling 索引、应用信息和标签，支撑查询和聚合。 |
+| pyroscope-query-backend | 聚合 metastore 和 segment writer 的数据，处理查询请求。 |
+| pyroscope-query-frontend | Web 前端展示，调用 query-backend 渲染 flamegraph 和表格。 |
+| pyroscope-segment-writer | 存储原始 profiling 数据，按时间段保存 stack trace。 |
+| pyroscope-tenant-settings | 多租户配置管理，如采样率、存储策略、权限配置。 |
 
 ## Tempo (Tracing 系统)
 | Service | Description |
